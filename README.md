@@ -3,10 +3,7 @@
 This repository contains code for studying the impact of instruction fine-tuning (SFT) through the lens of **verbatim memorization** of the pre-training corpus.
 
 ## Why OLMo-2?
-We require (i) an open-source base model, 
-(ii) an official SFT variant from the same base model, 
-(iii) public access to the corresponding pre-training data and SFT mixtures, 
-and (iv) multiple parameter scales.  
+We require (i) an open-source base model, (ii) an official SFT variant from the same base model, (iii) public access to the corresponding pre-training data and SFT mixtures, and (iv) multiple parameter scales.  
 **OLMo-2** satisfies all four criteria (base + official SFT + public corpora + multiple scales).
 
 ## Models (Base and SFT)
