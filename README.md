@@ -44,7 +44,23 @@ python exp_1/analysis_3.py --prefix_lengths 16 --max_samples 100 \
 # 3) Downstream evaluation
 python exp_2/evaluate_downstream_tasks_1.py --num_samples 100 --few_shot_count 5 --batch_size <BATCH> --datasets <mmlu|popqa>
 
+# 4) Memorization vs downstream relationship
+python exp_2/analyze_memorization_downstream_relationship_2.py
+Minimal templates (run from repo root):
+
 ```bash
+# 1) Memorization generation (Base vs SFT)
+python exp_1/generation_2.py --datasets stackexchange dclm-privacy wiki-fact \
+  --model_name <MODEL_NAME> --model_type <base|sft> --max_new_tokens 128
+
+# 2) Memorization scoring (one dataset + one model scale per run)
+python exp_1/analysis_3.py --prefix_lengths 16 --max_samples 100 \
+  --datasets <DATASET> --model_scale <1B|7B|13B|32B>
+
+# 3) Downstream evaluation
+python exp_2/evaluate_downstream_tasks_1.py --num_samples 100 --few_shot_count 5 \
+  --batch_size <BATCH> --datasets <mmlu|popqa>
+
 # 4) Memorization vs downstream relationship
 python exp_2/analyze_memorization_downstream_relationship_2.py
 Notes
