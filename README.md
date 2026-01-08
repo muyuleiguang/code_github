@@ -44,6 +44,7 @@ python exp_1/analysis_3.py --prefix_lengths 16 --max_samples 100 \
 # 3) Downstream evaluation
 python exp_2/evaluate_downstream_tasks_1.py --num_samples 100 --few_shot_count 5 --batch_size <BATCH> --datasets <mmlu|popqa>
 
+```bash
 # 4) Memorization vs downstream relationship
 python exp_2/analyze_memorization_downstream_relationship_2.py
 Notes
