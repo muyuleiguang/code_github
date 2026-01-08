@@ -3,7 +3,10 @@
 This repository contains code for studying the impact of instruction fine-tuning (SFT) through the lens of **verbatim memorization** of the pre-training corpus.
 
 ## Why OLMo-2?
-We require (i) an open-source base model, (ii) an official SFT variant from the same base model, (iii) public access to the corresponding pre-training data and SFT mixtures, and (iv) multiple parameter scales.  
+We require (i) an open-source base model, 
+(ii) an official SFT variant from the same base model, 
+(iii) public access to the corresponding pre-training data and SFT mixtures, 
+and (iv) multiple parameter scales.  
 **OLMo-2** satisfies all four criteria (base + official SFT + public corpora + multiple scales).
 
 ## Models (Base and SFT)
@@ -49,11 +52,10 @@ python exp_2/evaluate_downstream_tasks_1.py --num_samples 100 --few_shot_count 5
 python exp_2/analyze_memorization_downstream_relationship_2.py
 
 ```
-Notes
-
+## Notes
 This repo provides code and instructions. Please follow the original licenses/terms for models and datasets.
 
-Citation
+## Citation
+If you use this code, please cite our paper:  
+*Instruction Fine-Tuning through the Lens of Verbatim Memorization*
 
-If you use this code, please cite our paper:
-Instruction Fine-Tuning through the Lens of Verbatim Memorization
