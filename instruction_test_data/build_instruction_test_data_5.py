@@ -1,5 +1,5 @@
 """
-构建用于测试指令相关memorization的数据集
+Build a dataset for testing instruction-related memorization
 """
 import json
 import os
@@ -12,34 +12,34 @@ from tqdm import tqdm
 class InstructionTestBuilder:
     def __init__(self, seed: int = 42):
         """
-        初始化测试数据构建器
+        Initialize the test data builder
 
         Args:
-            seed: 随机种子
+            seed: Random seed
         """
         random.seed(seed)
         self.builders = []
 
     def add_builder(self, func, name: str):
-        """添加构建函数"""
+        """Add a builder function"""
         self.builders.append((func, name))
 
     def build_instruction_memorization_test(self, item: Dict) -> List[Dict]:
         """
-        构建指令记忆测试
+        Build instruction memorization tests
 
-        测试模型是否记住了类似指令格式的预训练数据
+        Test whether the model memorizes pretraining data with similar instruction formats
         """
         tests = []
         text = item["text"]
         match_score = item.get("match_score", 0)
         match_details = item.get("match_details", {})
 
-        # 根据匹配类型构建不同的测试
+        # Build different tests depending on the match type
 
-        # 1. 如果是问答格式，构建QA测试
+        # 1. If it is in QA format, build a QA test
         if match_details.get("qa_structure", 0) > 0.5:
-            # 尝试分割问答
+            # Try to split question and answer
             if "?" in text:
                 parts = text.split("?", 1)
                 if len(parts) == 2 and len(parts[1].strip()) > 50:
@@ -50,9 +50,9 @@ class InstructionTestBuilder:
                         "match_score": match_score
                     })
 
-        # 2. 指令格式补全测试
+        # 2. Instruction-format continuation test
         if match_details.get("instruction_format", 0) > 0.5:
-            # 取前30%作为prompt
+            # Use the first 30% as the prompt
             split_point = len(text) // 3
             tests.append({
                 "test_type": "instruction_continuation",
@@ -61,11 +61,11 @@ class InstructionTestBuilder:
                 "match_score": match_score
             })
 
-        # 3. 回答格式测试
+        # 3. Response-format test
         if match_details.get("response_format", 0) > 0.5:
-            # 如果文本包含列表或步骤，测试格式记忆
+            # If the text contains a list or steps, test format memorization
             if "\n1." in text or "\nStep" in text:
-                # 给出开头，预测格式化的内容
+                # Provide the beginning and predict the formatted content
                 lines = text.split("\n")
                 if len(lines) > 3:
                     tests.append({
@@ -80,17 +80,17 @@ class InstructionTestBuilder:
 
     def build_control_group_test(self, item: Dict) -> List[Dict]:
         """
-        构建对照组测试
+        Build control-group tests
 
-        使用低匹配分数的数据作为对照
+        Use low match-score data as controls
         """
         tests = []
         text = item["text"]
         match_score = item.get("match_score", 0)
 
-        # 只处理低分数据作为对照
+        # Only use low-score data as controls
         if match_score < 0.2:
-            # 标准的prefix continuation测试
+            # Standard prefix-continuation tests
             for ratio in [0.25, 0.5, 0.75]:
                 split_point = int(len(text) * ratio)
                 if split_point > 50 and split_point < len(text) - 50:
@@ -107,11 +107,12 @@ class InstructionTestBuilder:
 
     def build_gradient_test(self, matched_data: List[Dict]) -> List[Dict]:
         """
-        构建梯度测试
+        Build gradient tests
 
-        选择不同匹配分数的数据，测试memorization与指令相似度的关系
+        Select data with different match scores to test the relationship
+        between memorization and instruction similarity
         """
-        # 按分数分组
+        # Group by score
         score_bins = {
             "very_low": [],  # 0-0.2
             "low": [],  # 0.2-0.4
@@ -133,7 +134,7 @@ class InstructionTestBuilder:
             else:
                 score_bins["very_high"].append(item)
 
-        # 从每个bin中采样
+        # Sample from each bin
         gradient_tests = []
         samples_per_bin = 100
 
@@ -147,7 +148,7 @@ class InstructionTestBuilder:
                 text = item["text"]
                 score = item["match_score"]
 
-                # 标准测试
+                # Standard test
                 split_point = len(text) // 2
                 gradient_tests.append({
                     "test_type": "gradient_test",
@@ -162,11 +163,11 @@ class InstructionTestBuilder:
 
     def build_all_tests(self, matched_data: List[Dict], control_data: List[Dict]) -> Dict:
         """
-        构建所有测试
+        Build all tests
 
         Args:
-            matched_data: 匹配的数据（高分）
-            control_data: 对照数据（低分或未匹配）
+            matched_data: Matched data (high-score)
+            control_data: Control data (low-score or unmatched)
         """
         all_tests = {
             "instruction_tests": [],
@@ -174,17 +175,17 @@ class InstructionTestBuilder:
             "gradient_tests": []
         }
 
-        # 构建指令相关测试
+        # Build instruction-related tests
         for item in tqdm(matched_data[:1000], desc="构建指令测试"):
             tests = self.build_instruction_memorization_test(item)
             all_tests["instruction_tests"].extend(tests)
 
-        # 构建对照组测试
+        # Build control-group tests
         for item in tqdm(control_data[:500], desc="构建对照测试"):
             tests = self.build_control_group_test(item)
             all_tests["control_tests"].extend(tests)
 
-        # 构建梯度测试
+        # Build gradient tests
         all_data = matched_data + control_data
         gradient_tests = self.build_gradient_test(all_data)
         all_tests["gradient_tests"] = gradient_tests
@@ -203,7 +204,7 @@ def main():
     builder = InstructionTestBuilder(seed=args.seed)
     os.makedirs(args.output_dir, exist_ok=True)
 
-    # 加载匹配的数据
+    # Load matched data
     all_matched_data = []
     all_control_data = []
 
@@ -231,16 +232,16 @@ def main():
     print(f"加载 {len(all_matched_data)} 条高匹配数据")
     print(f"加载 {len(all_control_data)} 条对照数据")
 
-    # 构建测试数据
+    # Build test data
     test_data = builder.build_all_tests(all_matched_data, all_control_data)
 
-    # 统计信息
+    # Statistics
     print("\n测试数据统计:")
     for test_type, tests in test_data.items():
         print(f"  {test_type}: {len(tests)} 条")
 
         if tests:
-            # 统计子类型
+            # Count subtypes
             subtypes = {}
             for test in tests:
                 subtype = test.get("test_type", "unknown")
@@ -249,7 +250,7 @@ def main():
             for subtype, count in subtypes.items():
                 print(f"    - {subtype}: {count}")
 
-    # 保存测试数据
+    # Save test data
     for test_type, tests in test_data.items():
         if not tests:
             continue
@@ -261,7 +262,7 @@ def main():
 
         print(f"保存 {test_type} 到: {output_file}")
 
-    # 保存合并的测试集
+    # Save the combined test set
     all_tests = []
     for tests in test_data.values():
         all_tests.extend(tests)

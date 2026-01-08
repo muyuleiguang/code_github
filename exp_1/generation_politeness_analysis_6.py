@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-扩展版相似性分析器
-包含原有的指令微调数据集相近性分析，以及新增的：
-- 实验2：生成内容与prefix内容的连贯程度
-- 实验3：确定性/不确定性词汇分析
-- 实验4：完整答案倾向性分析
+Extended similarity analyzer
+Includes the original instruction-tuning dataset similarity analysis, plus the newly added:
+- Experiment 2: coherence between generated content and prefix content
+- Experiment 3: certainty/uncertainty vocabulary analysis
+- Experiment 4: full-answer tendency analysis
 """
 
 import json
@@ -22,7 +22,7 @@ from scipy.stats import entropy
 from WORDS import WORDSSet
 
 
-# 设置日志
+# Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
@@ -30,45 +30,45 @@ logger = logging.getLogger(__name__)
 class EnhancedSimilarityAnalyzer:
     def __init__(self):
         """
-        初始化增强版相近性分析器
+        Initialize the enhanced similarity analyzer
 
         Args:
-            instruction_verbs: 指令动词列表
+            instruction_verbs: Instruction verb list
         """
         self.instruction_verbs = WORDSSet.instruction_verbs
 
-        # 礼貌标记词列表
+        # Politeness marker list
         self.politeness_markers = WORDSSet.politeness_markers
 
-        # 结构化标记词列表
+        # Structural marker list
         self.structure_markers = WORDSSet.structure_markers
 
-        # 疑问词列表
+        # Question word list
         self.question_words = WORDSSet.question_words
 
-        # 实验3：确定性/不确定性词汇
+        # Experiment 3: certainty/uncertainty vocabulary
         self.certainty_markers = WORDSSet.certainty_markers
 
         self.uncertainty_markers = WORDSSet.uncertainty_markers
 
-        # 语义转折词
+        # Discourse transition markers
         self.transition_markers = WORDSSet.transition_markers
 
-        # 实验4：完整答案相关标记
+        # Experiment 4: full-answer-related markers
         self.conclusion_markers = WORDSSet.conclusion_markers
 
-        # 任务完成标记词
+        # Task completion markers
         self.task_completion_markers = WORDSSet.task_completion_markers
 
     def load_instruction_data(self, filepath: str) -> List[Dict]:
         """
-        加载指令微调数据集
+        Load the instruction-tuning dataset
 
         Args:
-            filepath: 指令微调数据集路径
+            filepath: Path to the instruction-tuning dataset
 
         Returns:
-            指令数据列表，每个元素包含prompt和generation
+            A list of instruction samples, each containing prompt and generation
         """
         logger.info(f"加载指令微调数据集: {filepath}")
         data = []
@@ -81,13 +81,13 @@ class EnhancedSimilarityAnalyzer:
 
     def load_generation_data(self, filepath: str) -> List[Dict]:
         """
-        加载模型生成数据
+        Load model generation data
 
         Args:
-            filepath: 模型生成数据路径
+            filepath: Path to the model generation data
 
         Returns:
-            生成数据列表
+            A list of generation records
         """
         logger.info(f"加载模型生成数据: {filepath}")
         data = []
@@ -100,31 +100,31 @@ class EnhancedSimilarityAnalyzer:
 
     def extract_vocabulary(self, texts: List[str]) -> Dict[str, int]:
         """
-        提取文本词汇统计
+        Extract word-frequency statistics from texts
 
         Args:
-            texts: 文本列表
+            texts: List of texts
 
         Returns:
-            词汇频次字典
+            Vocabulary frequency dict
         """
         vocab_counter = Counter()
         for text in texts:
-            # 简单的单词分割，转换为小写
+            # Simple tokenization into words, lowercased
             words = re.findall(r'\b\w+\b', text.lower())
             vocab_counter.update(words)
         return dict(vocab_counter)
 
     def calculate_vocabulary_overlap(self, vocab1: Dict[str, int], vocab2: Dict[str, int]) -> Dict[str, float]:
         """
-        计算两个词汇表的重叠度
+        Compute overlap between two vocabularies
 
         Args:
-            vocab1: 第一个词汇表
-            vocab2: 第二个词汇表
+            vocab1: First vocabulary
+            vocab2: Second vocabulary
 
         Returns:
-            包含各种重叠指标的字典
+            Dict containing various overlap metrics
         """
         set1 = set(vocab1.keys())
         set2 = set(vocab2.keys())
@@ -132,14 +132,14 @@ class EnhancedSimilarityAnalyzer:
         intersection = set1 & set2
         union = set1 | set2
 
-        # 计算Jaccard相似度
+        # Compute Jaccard similarity
         jaccard = len(intersection) / len(union) if union else 0
 
-        # 计算重叠词汇占比
+        # Compute overlap ratios
         overlap_ratio_1 = len(intersection) / len(set1) if set1 else 0
         overlap_ratio_2 = len(intersection) / len(set2) if set2 else 0
 
-        # 计算共同词汇的频次相关性
+        # Compute frequency correlation on shared words
         common_words = list(intersection)
         if common_words:
             freq1 = [vocab1[word] for word in common_words]
@@ -158,13 +158,13 @@ class EnhancedSimilarityAnalyzer:
 
     def calculate_instruction_density(self, texts: List[str]) -> Dict[str, float]:
         """
-        计算指令词密度
+        Compute instruction-word density
 
         Args:
-            texts: 文本列表
+            texts: List of texts
 
         Returns:
-            指令词密度统计
+            Instruction density statistics
         """
         total_words = 0
         instruction_word_count = 0
@@ -174,7 +174,7 @@ class EnhancedSimilarityAnalyzer:
             words = re.findall(r'\b\w+\b', text.lower())
             total_words += len(words)
 
-            # 统计指令词出现次数
+            # Count occurrences of instruction words
             text_has_instruction = False
             for word in words:
                 if word in self.instruction_verbs:
@@ -193,13 +193,13 @@ class EnhancedSimilarityAnalyzer:
 
     def analyze_politeness_markers(self, texts: List[str]) -> Dict[str, float]:
         """
-        分析礼貌标记词使用情况
+        Analyze usage of politeness markers
 
         Args:
-            texts: 文本列表
+            texts: List of texts
 
         Returns:
-            礼貌标记统计
+            Politeness marker statistics
         """
         total_texts = len(texts)
         politeness_count = 0
@@ -225,13 +225,13 @@ class EnhancedSimilarityAnalyzer:
 
     def analyze_structure_markers(self, texts: List[str]) -> Dict[str, float]:
         """
-        分析结构化标记词使用情况
+        Analyze usage of structural markers
 
         Args:
-            texts: 文本列表
+            texts: List of texts
 
         Returns:
-            结构化标记统计
+            Structural marker statistics
         """
         total_texts = len(texts)
         structured_count = 0
@@ -257,23 +257,23 @@ class EnhancedSimilarityAnalyzer:
 
     def analyze_question_patterns(self, texts: List[str]) -> Dict[str, float]:
         """
-        分析疑问句模式
+        Analyze question-sentence patterns
 
         Args:
-            texts: 文本列表
+            texts: List of texts
 
         Returns:
-            疑问句模式统计
+            Question pattern statistics
         """
         total_texts = len(texts)
         question_count = 0
         question_word_freq = Counter()
 
         for text in texts:
-            # 检查是否包含问号
+            # Check whether a question mark appears
             has_question_mark = '?' in text
 
-            # 检查是否以疑问词开头
+            # Check whether it starts with a question word
             words = re.findall(r'\b\w+\b', text.lower())
             has_question_word = False
 
@@ -292,28 +292,28 @@ class EnhancedSimilarityAnalyzer:
             'total_question_words': sum(question_word_freq.values())
         }
 
-    # ============= 实验2：生成内容与prefix内容的连贯程度 =============
+    # ============= Experiment 2: coherence between generated content and prefix content =============
     def analyze_coherence_with_prefix(self, data: List[Dict]) -> Dict[str, float]:
         """
-        分析生成内容与prefix的连贯程度
+        Analyze coherence between generated content and the prefix
 
         Args:
-            data: 包含prefix和generated_text的数据列表
+            data: List of records containing prefix and generated_text
 
         Returns:
-            连贯性分析结果
+            Coherence analysis results
         """
         total_samples = len(data)
 
-        # 词汇连贯性统计
+        # Lexical coherence stats
         vocab_coherence_scores = []
-        # 句法连贯性统计
+        # Syntactic coherence stats
         syntax_coherence_scores = []
-        # 主题转折统计
+        # Topic-shift stats
         topic_shift_count = 0
-        # 句子边界熵值
+        # Sentence boundary entropy values
         sentence_boundary_entropies = []
-        # 转折词密度
+        # Transition marker densities
         transition_densities = []
 
         for item in data:
@@ -323,7 +323,7 @@ class EnhancedSimilarityAnalyzer:
             if not prefix or not generated:
                 continue
 
-            # 1. 词汇连贯性：计算共同词汇比例
+            # 1. Lexical coherence: proportion of overlapping vocabulary
             prefix_words = set(re.findall(r'\b\w+\b', prefix.lower()))
             generated_words = set(re.findall(r'\b\w+\b', generated.lower()))
 
@@ -331,8 +331,9 @@ class EnhancedSimilarityAnalyzer:
                 vocab_overlap = len(prefix_words & generated_words) / len(prefix_words)
                 vocab_coherence_scores.append(vocab_overlap)
 
-            # 2. 句法连贯性：分析句子结构相似性
-            # 使用更合理的方法：比较最后一个prefix句子和第一个生成句子的词性分布
+            # 2. Syntactic coherence: analyze sentence-structure similarity
+            # Use a more reasonable method: compare POS/functional-word distribution between
+            # the last prefix sentence and the first generated sentence
             prefix_sentences = [s.strip() for s in re.split(r'[.!?]', prefix) if s.strip()]
             generated_sentences = [s.strip() for s in re.split(r'[.!?]', generated) if s.strip()]
 
@@ -340,7 +341,7 @@ class EnhancedSimilarityAnalyzer:
                 last_prefix_sent = prefix_sentences[-1]
                 first_generated_sent = generated_sentences[0]
 
-                # 简化的句法分析：比较功能词（代词、介词、连词）的比例
+                # Simplified syntactic proxy: compare function-word ratio
                 def get_function_word_ratio(sentence):
                     words = re.findall(r'\b\w+\b', sentence.lower())
                     function_words = {'the', 'a', 'an', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for', 'of', 'with',
@@ -357,27 +358,27 @@ class EnhancedSimilarityAnalyzer:
                 prefix_ratio = get_function_word_ratio(last_prefix_sent)
                 generated_ratio = get_function_word_ratio(first_generated_sent)
 
-                # 计算相似性（1 - 差异的绝对值）
+                # Similarity = 1 - absolute difference
                 syntax_similarity = 1 - abs(prefix_ratio - generated_ratio)
                 syntax_coherence_scores.append(syntax_similarity)
 
-            # 3. 主题转折检测：检查是否有明显的主题转折
+            # 3. Topic-shift detection: check for explicit discourse transition markers
             full_text = prefix + " " + generated
             if any(marker in full_text.lower() for marker in self.transition_markers):
                 topic_shift_count += 1
 
-            # 4. 句子边界熵值：分析生成内容的句子长度变化规律
+            # 4. Sentence boundary entropy: analyze sentence-length variation in generated text
             if generated_sentences and len(generated_sentences) > 1:
                 sent_lengths = [len(s.split()) for s in generated_sentences]
                 if sent_lengths and max(sent_lengths) > 0:
-                    # 计算句子长度分布的熵
+                    # Compute entropy of the sentence-length distribution
                     length_counts = Counter(sent_lengths)
                     total_sents = len(sent_lengths)
                     length_probs = [count / total_sents for count in length_counts.values()]
                     sent_entropy = -sum(p * math.log2(p) for p in length_probs if p > 0)
                     sentence_boundary_entropies.append(sent_entropy)
 
-            # 5. 转折词密度：计算生成内容中转折词的密度
+            # 5. Transition density: compute density of transition markers in generated text
             generated_words_list = re.findall(r'\b\w+\b', generated.lower())
             if generated_words_list:
                 transition_count = sum(1 for marker in self.transition_markers if marker in generated.lower())
@@ -393,16 +394,16 @@ class EnhancedSimilarityAnalyzer:
             'total_analyzed_samples': total_samples
         }
 
-    # ============= 实验3：确定性/不确定性词汇分析 =============
+    # ============= Experiment 3: certainty/uncertainty vocabulary analysis =============
     def analyze_certainty_patterns(self, data: List[Dict]) -> Dict[str, float]:
         """
-        分析确定性/不确定性词汇使用模式
+        Analyze certainty/uncertainty vocabulary usage patterns
 
         Args:
-            data: 包含生成文本和概率信息的数据列表
+            data: List of records containing generated text (and optionally probability info)
 
         Returns:
-            确定性模式分析结果
+            Certainty-pattern analysis results
         """
         total_texts = len(data)
         certainty_scores = []
@@ -422,29 +423,29 @@ class EnhancedSimilarityAnalyzer:
             if total_words == 0:
                 continue
 
-            # 1. 确定性词汇密度
+            # 1. Certainty marker density
             certainty_count = sum(1 for word in words if word in self.certainty_markers)
             certainty_scores.append(certainty_count / total_words)
 
-            # 2. 不确定性词汇密度
+            # 2. Uncertainty marker density
             uncertainty_count = sum(1 for word in words if word in self.uncertainty_markers)
             uncertainty_scores.append(uncertainty_count / total_words)
 
-            # 3. 句子边界熵值（简化计算）
+            # 3. Sentence boundary entropy (simplified)
             sentences = re.split(r'[.!?]', text)
             if len(sentences) > 1:
-                # 计算句子长度分布的熵
+                # Compute entropy of the sentence-length distribution
                 sent_lengths = [len(s.split()) for s in sentences if s.strip()]
                 if sent_lengths:
-                    # 归一化长度分布
+                    # Normalize length distribution
                     total_length = sum(sent_lengths)
                     if total_length > 0:
                         length_probs = [l / total_length for l in sent_lengths]
-                        # 计算熵
+                        # Compute entropy
                         sent_entropy = -sum(p * math.log2(p) for p in length_probs if p > 0)
                         sentence_boundary_entropies.append(sent_entropy)
 
-            # 4. 语义转折点密度
+            # 4. Discourse transition density
             transition_count = sum(1 for marker in self.transition_markers if marker in text.lower())
             transition_densities.append(transition_count / total_words)
 
@@ -458,16 +459,16 @@ class EnhancedSimilarityAnalyzer:
                 uncertainty_scores) > 0 else 0
         }
 
-    # ============= 实验4：完整答案倾向性 =============
+    # ============= Experiment 4: full-answer tendency =============
     def analyze_answer_completeness(self, data: List[Dict]) -> Dict[str, float]:
         """
-        分析生成内容的完整答案倾向性
+        Analyze the tendency of generated content to provide complete answers
 
         Args:
-            data: 包含生成文本的数据列表
+            data: List of records containing generated text
 
         Returns:
-            完整答案倾向性分析结果
+            Full-answer tendency analysis results
         """
         total_texts = len(data)
         completion_scores = []
@@ -486,33 +487,33 @@ class EnhancedSimilarityAnalyzer:
             if total_words == 0:
                 continue
 
-            # 1. 答案完整性得分：检查结论性标记的合理使用
+            # 1. Answer completeness score: check reasonable usage of conclusion markers
             conclusion_count = sum(1 for marker in self.conclusion_markers if marker in text.lower())
-            # 将完整性得分规范化为相对于文本长度的合理比例
+            # Normalize completeness score to a reasonable ratio w.r.t. text length
             if total_words > 0:
-                # 每100个词允许1-2个结论词为合理范围
-                expected_ratio = total_words / 100 * 0.015  # 1.5%的基准比例
+                # A reasonable range: 1-2 conclusion markers per 100 words
+                expected_ratio = total_words / 100 * 0.015  # Baseline ratio: 1.5%
                 completion_score = min(conclusion_count / max(expected_ratio, 0.01), 1.0)
             else:
                 completion_score = 0
             completion_scores.append(completion_score)
 
-            # 2. 任务完成导向性：检查任务相关词汇
+            # 2. Task-orientation: check task-related markers
             task_word_count = sum(1 for word in words if word in self.task_completion_markers)
             task_orientation_scores.append(task_word_count / total_words)
 
-            # 3. 词性多样性（信息密度的合理代理）：分析词汇的语法类别多样性
-            # 使用简化的词性识别规则
+            # 3. POS diversity (a proxy for information density): analyze grammatical category diversity
+            # Use simplified POS identification rules
             pos_categories = {
-                'nouns': 0,  # 名词
-                'verbs': 0,  # 动词
-                'adjectives': 0,  # 形容词
-                'adverbs': 0,  # 副词
-                'pronouns': 0,  # 代词
-                'prepositions': 0  # 介词
+                'nouns': 0,  # Nouns
+                'verbs': 0,  # Verbs
+                'adjectives': 0,  # Adjectives
+                'adverbs': 0,  # Adverbs
+                'pronouns': 0,  # Pronouns
+                'prepositions': 0  # Prepositions
             }
 
-            # 简化的词性识别规则
+            # Simplified POS identification rules
             for word in words:
                 if word.endswith(('ing', 'ed', 'er', 'est')):
                     if word.endswith('ing'):
@@ -529,10 +530,10 @@ class EnhancedSimilarityAnalyzer:
                               'through', 'during', 'before', 'after'}:
                     pos_categories['prepositions'] += 1
                 else:
-                    # 默认视为名词
+                    # Default to noun
                     pos_categories['nouns'] += 1
 
-            # 计算词性多样性（使用香农熵）
+            # Compute POS diversity (Shannon entropy)
             total_pos_count = sum(pos_categories.values())
             if total_pos_count > 0:
                 pos_probs = [count / total_pos_count for count in pos_categories.values() if count > 0]
@@ -552,19 +553,19 @@ class EnhancedSimilarityAnalyzer:
     def compare_similarity(self, base_data: List[Dict], sft_data: List[Dict],
                            instruction_data: List[Dict]) -> Dict:
         """
-        比较base和SFT模型与指令数据的相似性（包含所有实验）
+        Compare similarity between base/SFT generations and instruction data (including all experiments)
 
         Args:
-            base_data: base模型生成数据
-            sft_data: SFT模型生成数据
-            instruction_data: 指令微调数据
+            base_data: Generation data from the base model
+            sft_data: Generation data from the SFT model
+            instruction_data: Instruction-tuning data
 
         Returns:
-            完整的相似性分析结果
+            Full similarity analysis results
         """
         logger.info("开始进行综合相似性分析...")
 
-        # 提取文本内容
+        # Extract text content
         base_texts = [item['generated_text'] for item in base_data]
         sft_texts = [item['generated_text'] for item in sft_data]
         instruction_texts = [item['generation'] for item in instruction_data]
@@ -575,8 +576,8 @@ class EnhancedSimilarityAnalyzer:
 
         results = {}
 
-        # ========== 原有分析 ==========
-        # 1. 词汇层面分析
+        # ========== Original analysis ==========
+        # 1. Vocabulary-level analysis
         logger.info("进行词汇层面分析, base，sft，instructuion三者见的词汇交集、并集等...")
         base_vocab = self.extract_vocabulary(base_texts)
         sft_vocab = self.extract_vocabulary(sft_texts)
@@ -593,10 +594,10 @@ class EnhancedSimilarityAnalyzer:
             }
         }
 
-        # 2. 指令相关特征分析（从instruction角度）
+        # 2. Instruction-related feature analysis (from instruction perspective)
         logger.info("进行指令相关特征分析...")
 
-        # 2.1 礼貌标记分析
+        # 2.1 Politeness marker analysis
         logger.info("进行礼貌标记分析...")
         results['politeness_analysis'] = {
             'base': self.analyze_politeness_markers(base_texts),
@@ -604,7 +605,7 @@ class EnhancedSimilarityAnalyzer:
             'instruction': self.analyze_politeness_markers(instruction_texts)
         }
 
-        # 2.2 结构化标记分析
+        # 2.2 Structural marker analysis
         logger.info("进行结构化标记分析...")
         results['structure_analysis'] = {
             'base': self.analyze_structure_markers(base_texts),
@@ -612,7 +613,7 @@ class EnhancedSimilarityAnalyzer:
             'instruction': self.analyze_structure_markers(instruction_texts)
         }
 
-        # 2.3 疑问句模式分析
+        # 2.3 Question pattern analysis
         logger.info("进行疑问句模式分析...")
         results['question_analysis'] = {
             'base': self.analyze_question_patterns(base_texts),
@@ -620,7 +621,7 @@ class EnhancedSimilarityAnalyzer:
             'instruction': self.analyze_question_patterns(instruction_texts)
         }
 
-        # 3：确定性/不确定性词汇分析和转折词
+        # 3: Certainty/uncertainty vocabulary analysis and transition markers
         logger.info("确定性模式分析...")
         results['certainty_analysis'] = {
             'base': self.analyze_certainty_patterns(base_data),
@@ -628,7 +629,7 @@ class EnhancedSimilarityAnalyzer:
             'instruction': self.analyze_certainty_patterns([{'generated_text': text} for text in instruction_texts])
         }
 
-        # 2.5 完整答案倾向性分析
+        # 2.5 Full-answer tendency analysis
         logger.info("完整答案倾向性分析...")
         results['completeness_analysis'] = {
             'base': self.analyze_answer_completeness(base_data),
@@ -636,8 +637,8 @@ class EnhancedSimilarityAnalyzer:
             'instruction': self.analyze_answer_completeness([{'generated_text': text} for text in instruction_texts])
         }
 
-        # ========== 新增实验：连贯性分析 ==========
-        # 实验2：生成内容与prefix内容的连贯程度
+        # ========== New experiment: coherence analysis ==========
+        # Experiment 2: coherence between generated content and prefix content
         logger.info("进行实验2：连贯性分析...")
         results['coherence_analysis'] = {
             'base': self.analyze_coherence_with_prefix(base_data),
@@ -674,25 +675,25 @@ def main():
     args.base_generation_path = f'/root/autodl-tmp/ift_memorization/results/exp1_generation_{args.generation_length}/{args.data_type}_prefix32_new{args.generation_length}_{args.model_scale}_base_{args.max_samples}_samples.jsonl'
     args.sft_generation_path = f'/root/autodl-tmp/ift_memorization/results/exp1_generation_{args.generation_length}/{args.data_type}_prefix32_new{args.generation_length}_{args.model_scale}_sft_{args.max_samples}_samples.jsonl'
 
-    # 创建输出目录
+    # Create output directory
     os.makedirs(args.output_dir, exist_ok=True)
 
 
-    # 初始化分析器
+    # Initialize analyzer
     analyzer = EnhancedSimilarityAnalyzer()
 
-    # 加载数据
+    # Load data
     instruction_data = analyzer.load_instruction_data(args.instruction_data_path)
     base_data = analyzer.load_generation_data(args.base_generation_path)
     sft_data = analyzer.load_generation_data(args.sft_generation_path)
 
-    # 进行相似性分析
+    # Run similarity analysis
     results = analyzer.compare_similarity(base_data, sft_data, instruction_data)
 
-    # 打印关键结果摘要
+    # Print key result summary
     print("\n=== 综合相似性分析结果摘要 ===")
 
-    # 原有分析
+    # Original analysis
     print("【生成的内容与指令微调数据集的特点的相似程度】")
     print(
         f"词汇重叠度 (Base vs 指令数据): {results['vocabulary_analysis']['base_vs_instruction']['jaccard_similarity']:.4f}")
@@ -719,7 +720,7 @@ def main():
     print(f"词性多样性 - Base: {results['completeness_analysis']['base']['avg_pos_diversity']:.4f}")
     print(f"词性多样性 - SFT: {results['completeness_analysis']['sft']['avg_pos_diversity']:.4f}")
 
-    # 新增实验结果
+    # New experiment results
     print("\n【实验2：连贯性分析】")
     print(f"词汇连贯性 - Base: {results['coherence_analysis']['base']['avg_vocab_coherence']:.4f}")
     print(f"词汇连贯性 - SFT: {results['coherence_analysis']['sft']['avg_vocab_coherence']:.4f}")
@@ -730,7 +731,7 @@ def main():
     print(f"句子边界熵 - Base: {results['coherence_analysis']['base']['avg_sentence_boundary_entropy']:.4f}")
     print(f"句子边界熵 - SFT: {results['coherence_analysis']['sft']['avg_sentence_boundary_entropy']:.4f}")
 
-    # 保存结果
+    # Save results
     output_file = os.path.join(args.output_dir,
                                f'exp1_differences_{args.data_type}_{args.model_scale}_length_{args.generation_length}.json')
 

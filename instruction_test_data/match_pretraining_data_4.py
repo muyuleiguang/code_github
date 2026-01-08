@@ -1,5 +1,5 @@
 """
-使用指令特征匹配和筛选预训练数据
+Use instruction-feature matching to select and filter pretraining data
 """
 import json
 import os
@@ -14,52 +14,52 @@ import numpy as np
 class PretrainingMatcher:
     def __init__(self, features_path: str):
         """
-        初始化匹配器
+        Initialize the matcher
 
         Args:
-            features_path: 指令特征文件路径
+            features_path: Path to the instruction feature file
         """
         with open(features_path, "rb") as f:
             self.features = pickle.load(f)
 
-        self.matchers = []  # 存储匹配函数
+        self.matchers = []  # Store matching functions
 
     def add_matcher(self, func, name: str, weight: float = 1.0):
-        """添加匹配函数"""
+        """Add a matching function"""
         self.matchers.append((func, name, weight))
 
     def match_instruction_format(self, text: str) -> float:
         """
-        匹配指令格式
+        Match the instruction format
 
-        返回: 匹配分数 (0-1)
+        Returns: match score (0-1)
         """
         score = 0.0
         text_lower = text.lower()
 
-        # 检查指令动词
+        # Check instruction verbs
         if "instruction_verbs" in self.features:
             verbs = self.features["instruction_verbs"]
             verb_count = sum(1 for verb in verbs if verb in text_lower)
-            score += min(verb_count / 3, 1.0) * 0.3  # 最多占30%分数
+            score += min(verb_count / 3, 1.0) * 0.3  # Up to 30% of the score
 
-        # 检查疑问模式
+        # Check question patterns
         if "question_patterns" in self.features:
             patterns = self.features["question_patterns"]
             pattern_count = sum(1 for pattern in patterns if pattern in text_lower)
-            score += min(pattern_count / 2, 1.0) * 0.2  # 最多占20%分数
+            score += min(pattern_count / 2, 1.0) * 0.2  # Up to 20% of the score
 
-        # 检查指令前缀
+        # Check instruction prefixes
         if "instruction_prefixes" in self.features:
             prefixes = self.features["instruction_prefixes"]
             has_prefix = any(text_lower.startswith(prefix) for prefix in prefixes)
             score += 0.2 if has_prefix else 0
 
-        # 检查是否包含问号（疑问句特征）
+        # Check whether it contains a question mark (interrogative feature)
         if "?" in text:
             score += 0.1
 
-        # 检查命令式特征（祈使句）
+        # Check imperative features (imperative sentence)
         imperative_patterns = [r'^(please\s+)?[a-z]+\s+', r'^(can|could|would)\s+you']
         if any(re.match(pattern, text_lower) for pattern in imperative_patterns):
             score += 0.2
@@ -68,42 +68,42 @@ class PretrainingMatcher:
 
     def match_response_format(self, text: str) -> float:
         """
-        匹配回答格式
+        Match the response format
 
-        返回: 匹配分数 (0-1)
+        Returns: match score (0-1)
         """
         score = 0.0
         text_lower = text.lower()
 
-        # 检查回答模板
+        # Check response templates
         if "response_templates" in self.features:
             templates = self.features["response_templates"]
 
             for template in templates:
                 if isinstance(template, str) and not template.startswith('^'):
-                    # 普通字符串模板
-                    if template in text_lower[:100]:  # 只检查开头
+                    # Plain string template
+                    if template in text_lower[:100]:  # Only check the beginning
                         score += 0.3
                         break
                 elif isinstance(template, str) and template.startswith('^'):
-                    # 正则表达式模板
+                    # Regex template
                     if re.search(template, text, re.MULTILINE):
                         score += 0.2
 
-        # 检查结构化特征
-        # 编号列表
+        # Check structural features
+        # Numbered list
         if re.search(r'^\d+\.', text, re.MULTILINE):
             score += 0.2
 
-        # 项目符号
+        # Bullet list
         if re.search(r'^[\*\-\•]', text, re.MULTILINE):
             score += 0.1
 
-        # 分步骤格式
+        # Step-by-step format
         if re.search(r'step \d|first.*then|next', text_lower):
             score += 0.2
 
-        # 多段落（结构化回答的特征）
+        # Multiple paragraphs (a feature of structured responses)
         paragraphs = text.split('\n\n')
         if len(paragraphs) > 2:
             score += 0.1
@@ -112,13 +112,13 @@ class PretrainingMatcher:
 
     def match_qa_structure(self, text: str) -> float:
         """
-        匹配问答结构
+        Match Q&A structure
 
-        返回: 匹配分数 (0-1)
+        Returns: match score (0-1)
         """
         score = 0.0
 
-        # 检查是否有明显的问答分隔
+        # Check for explicit Q&A separators
         qa_indicators = [
             "answer:", "solution:", "response:",
             "q:", "a:", "question:",
@@ -130,14 +130,14 @@ class PretrainingMatcher:
                 score += 0.3
                 break
 
-        # 检查是否有问题后跟答案的模式
+        # Check for a pattern where a question is followed by an answer
         if "?" in text:
-            # 问号后面有实质性内容
+            # Substantial content after the question mark
             parts = text.split("?")
             if len(parts) > 1 and len(parts[1].strip()) > 50:
                 score += 0.4
 
-        # 检查对话标记
+        # Check dialogue markers
         if re.search(r'\n(user|human|person):', text_lower) and \
                 re.search(r'\n(assistant|ai|bot|response):', text_lower):
             score += 0.3
@@ -146,9 +146,9 @@ class PretrainingMatcher:
 
     def match_domain_keywords(self, text: str) -> float:
         """
-        匹配领域关键词
+        Match domain keywords
 
-        返回: 匹配分数 (0-1)
+        Returns: match score (0-1)
         """
         if "domain_keywords" not in self.features:
             return 0.0
@@ -161,7 +161,7 @@ class PretrainingMatcher:
             if not keywords:
                 continue
 
-            # 计算该领域的匹配度
+            # Compute the matching degree for this domain
             matched = sum(1 for kw in keywords if kw in text_lower)
             domain_score = min(matched / max(len(keywords), 1), 1.0)
             max_score = max(max_score, domain_score)
@@ -170,11 +170,11 @@ class PretrainingMatcher:
 
     def calculate_match_score(self, text: str) -> Tuple[float, Dict[str, float]]:
         """
-        计算总体匹配分数
+        Compute the overall match score
 
-        返回: (总分, 各项得分)
+        Returns: (total_score, per-component scores)
         """
-        # 添加所有匹配器
+        # Add all matchers
         self.matchers = []
         self.add_matcher(self.match_instruction_format, "instruction_format", 1.0)
         self.add_matcher(self.match_response_format, "response_format", 0.8)
@@ -197,13 +197,13 @@ class PretrainingMatcher:
 
     def match_pretraining_data(self, data: List[Dict], threshold: float = 0.3) -> List[Dict]:
         """
-        匹配预训练数据
+        Match pretraining data
 
         Args:
-            data: 预训练数据
-            threshold: 匹配阈值
+            data: Pretraining data
+            threshold: Match threshold
 
-        返回: 匹配的数据和分数
+        Returns: matched data with scores
         """
         matched_data = []
 
@@ -242,11 +242,11 @@ def main():
 
     args = parser.parse_args()
 
-    # 初始化匹配器
+    # Initialize the matcher
     matcher = PretrainingMatcher(args.features_file)
     os.makedirs(args.output_dir, exist_ok=True)
 
-    # 处理每个预训练数据集
+    # Process each pretraining dataset
     datasets = ["stackexchange", "wiki", "dclm"]
     suffix_map = {
         "stackexchange": "instruction",
@@ -262,7 +262,7 @@ def main():
             print(f"跳过不存在的文件: {input_file}")
             continue
 
-        # 加载数据
+        # Load data
         data = []
         with open(input_file, "r", encoding="utf-8") as f:
             for line in f:
@@ -272,18 +272,18 @@ def main():
 
         print(f"加载 {len(data)} 条数据")
 
-        # 执行匹配
+        # Run matching
         matched_data = matcher.match_pretraining_data(data, args.threshold)
 
         print(f"匹配到 {len(matched_data)} 条数据 (阈值={args.threshold})")
 
-        # 统计分数分布
+        # Summarize score distribution
         if matched_data:
             scores = [item["match_score"] for item in matched_data]
             print(f"分数分布: 平均={np.mean(scores):.3f}, 中位数={np.median(scores):.3f}, "
                   f"最小={np.min(scores):.3f}, 最大={np.max(scores):.3f}")
 
-        # 保存匹配结果
+        # Save matching results
         output_file = os.path.join(args.output_dir, f"{dataset_name}_matched.jsonl")
         with open(output_file, "w", encoding="utf-8") as f:
             for item in matched_data:
@@ -291,7 +291,7 @@ def main():
 
         print(f"保存到: {output_file}")
 
-        # 保存高分样本用于检查
+        # Save high-score samples for inspection
         high_score_samples = sorted(matched_data, key=lambda x: x["match_score"], reverse=True)[:10]
         sample_file = os.path.join(args.output_dir, f"{dataset_name}_high_score_samples.json")
         with open(sample_file, "w", encoding="utf-8") as f:

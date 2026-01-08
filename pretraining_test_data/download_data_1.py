@@ -1,5 +1,5 @@
 """
-超快数据下载脚本 - 直接取前N条数据，无采样开销
+Ultra-fast dataset download script - directly take the first N samples with no sampling overhead
 """
 import os
 import json
@@ -20,34 +20,34 @@ class FastDataDownloader:
                  max_workers: int = 4,
                  use_mirror: bool = True):
         """
-        初始化快速下载器
+        Initialize the fast downloader
 
-        参数:
-            output_dir: 输出目录
-            cache_dir: 缓存目录（用于断点续传）
-            max_workers: 并行下载的最大线程数
-            use_mirror: 是否使用国内镜像站
+        Parameters:
+            output_dir: Output directory
+            cache_dir: Cache directory (for resume/checkpointing)
+            max_workers: Maximum number of parallel download threads
+            use_mirror: Whether to use a domestic mirror site
         """
         self.output_dir = Path(output_dir)
         self.cache_dir = Path(cache_dir)
         self.max_workers = max_workers
 
-        # 设置镜像站
+        # Configure mirror endpoint
         if use_mirror:
             os.environ["HF_ENDPOINT"] = "https://hf-mirror.com"
             print("使用 HuggingFace 镜像站: https://hf-mirror.com")
 
-        # 创建必要的目录
+        # Create required directories
         self.output_dir.mkdir(parents=True, exist_ok=True)
         self.cache_dir.mkdir(parents=True, exist_ok=True)
 
     def _get_checkpoint_path(self, dataset_name: str, subset_name: str) -> Path:
-        """获取检查点文件路径"""
+        """Get checkpoint file path"""
         checkpoint_id = hashlib.md5(f"{dataset_name}_{subset_name}".encode()).hexdigest()[:8]
         return self.cache_dir / f"checkpoint_{checkpoint_id}.pkl"
 
     def _load_checkpoint(self, checkpoint_path: Path) -> Optional[int]:
-        """加载检查点，返回已下载的条数"""
+        """Load checkpoint and return the downloaded count"""
         if checkpoint_path.exists():
             try:
                 with open(checkpoint_path, 'rb') as f:
@@ -61,7 +61,7 @@ class FastDataDownloader:
         return 0
 
     def _save_checkpoint(self, checkpoint_path: Path, downloaded_count: int):
-        """保存检查点"""
+        """Save checkpoint"""
         try:
             checkpoint_data = {'downloaded_count': downloaded_count}
             with open(checkpoint_path, 'wb') as f:
@@ -74,15 +74,15 @@ class FastDataDownloader:
         dataset_name: str,
         subset_name: str,
         target_count: int = 5000000,
-        batch_size: int = 5000  # 增大批次减少I/O
+        batch_size: int = 5000  # Increase batch size to reduce I/O
     ) -> str:
         """
-        直接下载前N条数据，最快的方式
+        Directly download the first N samples (fastest approach)
         """
         output_path = self.output_dir / f"{subset_name}_top{target_count//1000000}M.jsonl"
         checkpoint_path = self._get_checkpoint_path(dataset_name, subset_name)
 
-        # 检查是否已完成
+        # Check if already complete
         if output_path.exists():
             with open(output_path, 'r', encoding='utf-8') as f:
                 existing_count = sum(1 for _ in f)
@@ -90,13 +90,13 @@ class FastDataDownloader:
                 print(f"{subset_name} 已存在完整数据 ({existing_count} 条)，跳过下载")
                 return str(output_path)
 
-        # 加载检查点
+        # Load checkpoint
         downloaded_count = self._load_checkpoint(checkpoint_path)
 
         print(f"正在下载 {dataset_name} 的 {subset_name} 子集前 {target_count} 条数据...")
 
         try:
-            # 流式加载数据集
+            # Stream-load dataset
             dataset = load_dataset(
                 dataset_name,
                 subset_name,
@@ -104,7 +104,7 @@ class FastDataDownloader:
                 streaming=True
             )
 
-            # 如果需要恢复，跳过已下载的数据
+            # If resuming, skip already downloaded samples
             if downloaded_count > 0:
                 print(f"跳过前 {downloaded_count} 条已下载的数据...")
                 dataset = dataset.skip(downloaded_count)
@@ -112,7 +112,7 @@ class FastDataDownloader:
             else:
                 remaining_count = target_count
 
-            # 打开文件进行追加写入
+            # Open file for append write
             mode = 'a' if downloaded_count > 0 else 'w'
             with open(output_path, mode, encoding="utf-8") as f:
                 batch_buffer = []
@@ -128,7 +128,7 @@ class FastDataDownloader:
                         if idx >= remaining_count:
                             break
 
-                        # 简化数据结构，减少处理开销
+                        # Simplify data structure to reduce processing overhead
                         data_item = {
                             "text": item.get("text", ""),
                             "source": subset_name,
@@ -137,13 +137,13 @@ class FastDataDownloader:
 
                         batch_buffer.append(data_item)
 
-                        # 批量写入，减少I/O开销
+                        # Batch write to reduce I/O overhead
                         if len(batch_buffer) >= batch_size:
                             for data in batch_buffer:
                                 f.write(json.dumps(data, ensure_ascii=False) + "\n")
-                            f.flush()  # 确保数据写入磁盘
+                            f.flush()  # Ensure data is flushed to disk
 
-                            # 更新进度
+                            # Update progress
                             current_downloaded = downloaded_count + idx + 1
                             pbar.update(len(batch_buffer))
                             pbar.set_postfix({
@@ -151,11 +151,11 @@ class FastDataDownloader:
                                 'speed': f"{len(batch_buffer)/(time.time() - pbar.last_print_t if pbar.last_print_t else 1):.0f}/s"
                             })
 
-                            # 保存检查点
+                            # Save checkpoint
                             self._save_checkpoint(checkpoint_path, current_downloaded)
                             batch_buffer = []
 
-                    # 写入剩余数据
+                    # Write remaining data
                     if batch_buffer:
                         for data in batch_buffer:
                             f.write(json.dumps(data, ensure_ascii=False) + "\n")
@@ -170,13 +170,13 @@ class FastDataDownloader:
             print(f"下载出错: {e}")
             return None
 
-        # 验证下载结果
+        # Validate download results
         with open(output_path, 'r', encoding='utf-8') as f:
             actual_count = sum(1 for _ in f)
 
         print(f"下载完成: {actual_count:,} 条数据保存到 {output_path}")
 
-        # 清理检查点
+        # Cleanup checkpoint
         if checkpoint_path.exists():
             checkpoint_path.unlink()
             print("清理检查点文件")
@@ -188,11 +188,11 @@ class FastDataDownloader:
         dataset_name: str,
         subset_name: str,
         target_count: int = 5000000,
-        skip_count: int = 0,  # 可以跳过前面一些数据
+        skip_count: int = 0,  # Can skip the first N samples
         batch_size: int = 5000
     ) -> str:
         """
-        下载指定范围的数据 (skip_count, skip_count + target_count)
+        Download a specific range: (skip_count, skip_count + target_count)
         """
         output_path = self.output_dir / f"{subset_name}_skip{skip_count//1000000}M_take{target_count//1000000}M.jsonl"
 
@@ -207,12 +207,12 @@ class FastDataDownloader:
                 streaming=True
             )
 
-            # 跳过指定数量的数据
+            # Skip a specified number of samples
             if skip_count > 0:
                 print(f"跳过前 {skip_count:,} 条数据...")
                 dataset = dataset.skip(skip_count)
 
-            # 下载数据
+            # Download data
             with open(output_path, 'w', encoding="utf-8") as f:
                 batch_buffer = []
 
@@ -237,7 +237,7 @@ class FastDataDownloader:
                             pbar.update(len(batch_buffer))
                             batch_buffer = []
 
-                    # 写入剩余数据
+                    # Write remaining data
                     if batch_buffer:
                         for data in batch_buffer:
                             f.write(json.dumps(data, ensure_ascii=False) + "\n")
@@ -256,7 +256,7 @@ class FastDataDownloader:
         target_count: int = 5000000
     ) -> List[str]:
         """
-        并行下载多个数据集
+        Download multiple datasets in parallel
         """
         output_paths = []
 
@@ -290,7 +290,7 @@ class FastDataDownloader:
         sample_size: int = 1000
     ):
         """
-        估算下载时间
+        Estimate download time
         """
         print(f"正在测试 {dataset_name}/{subset_name} 的下载速度...")
 
@@ -308,7 +308,7 @@ class FastDataDownloader:
 
         print(f"测试下载速度: {speed:.0f} 条/秒")
 
-        # 估算总时间
+        # Estimate total time
         for target in [1000000, 5000000, 10000000]:
             estimated_time = target / speed
             print(f"下载 {target:,} 条预计需要: {estimated_time/60:.1f} 分钟")
@@ -328,7 +328,7 @@ def main():
 
     args = parser.parse_args()
 
-    # 创建下载器
+    # Create downloader
     downloader = FastDataDownloader(
         output_dir=args.output_dir,
         cache_dir=args.cache_dir,
@@ -336,14 +336,14 @@ def main():
         use_mirror=not args.no_mirror
     )
 
-    # 定义要下载的数据集
+    # Define datasets to download
     datasets_to_download = [
         # ("allenai/dolmino-mix-1124", "stackexchange"),
         ("allenai/olmo-mix-1124", "wiki"),
         ("allenai/olmo-mix-1124", "dclm")
     ]
 
-    # 如果只是估算时间
+    # If only estimating time
     if args.estimate:
         for dataset_name, subset_name in datasets_to_download:
             downloader.estimate_download_time(dataset_name, subset_name)
@@ -359,7 +359,7 @@ def main():
     start_time = time.time()
 
     if args.sequential:
-        # 顺序下载
+        # Sequential download
         for dataset_name, subset_name in datasets_to_download:
             if args.skip_count > 0:
                 downloader.download_with_limit(
@@ -370,7 +370,7 @@ def main():
                     dataset_name, subset_name, args.target_count, args.batch_size
                 )
     else:
-        # 并行下载
+        # Parallel download
         downloader.parallel_download(datasets_to_download, args.target_count)
 
     elapsed_time = time.time() - start_time

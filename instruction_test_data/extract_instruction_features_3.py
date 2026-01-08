@@ -1,5 +1,5 @@
 """
-从指令数据中提取特征，用于匹配预训练数据
+Extract features from instruction data for matching pretraining data
 """
 import json
 import os
@@ -13,27 +13,27 @@ from tqdm import tqdm
 
 class InstructionFeatureExtractor:
     def __init__(self):
-        """初始化特征提取器"""
-        self.extractors = []  # 存储提取函数
-        self.features = {}  # 存储提取的特征
-        self.skipped_samples = 0  # 记录跳过的样本数
+        """Initialize the feature extractor"""
+        self.extractors = []  # Store extractor functions
+        self.features = {}  # Store extracted features
+        self.skipped_samples = 0  # Count skipped samples
 
     def add_extractor(self, func, name: str):
-        """添加特征提取函数"""
+        """Add a feature extraction function"""
         self.extractors.append((func, name))
 
     def extract_instruction_verbs(self, data: List[Dict]) -> Set[str]:
         """
-        提取指令动词
+        Extract instruction verbs
 
-        为什么提取：
-        - 这些动词是指令的核心特征
-        - 用于识别预训练数据中的指令格式文本
+        Why extract:
+        - These verbs are core features of instructions
+        - Used to identify instruction-format text in pretraining data
         """
         verb_counter = Counter()
         skipped = 0
 
-        # 预定义的指令动词列表
+        # Predefined list of instruction verbs
         instruction_verbs = [
             "write", "create", "explain", "describe", "analyze", "summarize",
             "translate", "generate", "provide", "list", "give", "make",
@@ -42,19 +42,19 @@ class InstructionFeatureExtractor:
         ]
 
         for item in tqdm(data, desc="提取指令动词"):
-            # 检查数据完整性
+            # Check data integrity
             if not item.get("messages") or len(item["messages"]) < 1:
                 skipped += 1
                 continue
 
             instruction = item["messages"][0]['content'].lower()
 
-            # 查找动词
+            # Search for verbs
             for verb in instruction_verbs:
                 if re.search(r'\b' + verb + r'\b', instruction):
                     verb_counter[verb] += 1
 
-        # 选择高频动词（出现次数 > 总数的1%）
+        # Select frequent verbs (count > 1% of total)
         threshold = len(data) * 0.01
         selected_verbs = {verb for verb, count in verb_counter.items() if count > threshold}
 
@@ -66,11 +66,11 @@ class InstructionFeatureExtractor:
 
     def extract_question_patterns(self, data: List[Dict]) -> List[str]:
         """
-        提取疑问模式
+        Extract question patterns
 
-        为什么提取：
-        - 疑问句是指令的重要形式
-        - 帮助识别QA格式的预训练数据
+        Why extract:
+        - Questions are an important form of instructions
+        - Helps identify QA-format pretraining data
         """
         question_words = ["what", "why", "how", "when", "where", "who", "which", "whom", "whose"]
         question_phrases = []
@@ -78,21 +78,21 @@ class InstructionFeatureExtractor:
         skipped = 0
 
         for item in tqdm(data, desc="提取疑问模式"):
-            # 检查数据完整性
+            # Check data integrity
             if not item.get("messages") or len(item["messages"]) < 1:
                 skipped += 1
                 continue
 
             instruction = item["messages"][0]['content'].lower()
 
-            # 提取疑问词开头的短语
+            # Extract phrases starting with question words
             for q_word in question_words:
                 pattern = r'\b' + q_word + r'\s+\w+(?:\s+\w+)?'
                 matches = re.findall(pattern, instruction)
                 for match in matches:
                     phrase_counter[match] += 1
 
-        # 选择高频模式
+        # Select frequent patterns
         threshold = len(data) * 0.005  # 0.5%
         question_phrases = [phrase for phrase, count in phrase_counter.items() if count > threshold]
 
@@ -104,17 +104,17 @@ class InstructionFeatureExtractor:
 
     def extract_response_templates(self, data: List[Dict]) -> List[str]:
         """
-        提取回答模板
+        Extract response templates
 
-        为什么提取：
-        - 识别标准的回答格式
-        - 用于筛选具有类似格式的预训练数据
+        Why extract:
+        - Identify standard response formats
+        - Used to filter pretraining data with similar formatting
         """
         template_patterns = []
         template_counter = Counter()
         skipped = 0
 
-        # 预定义的模板开头
+        # Predefined template starters
         template_starters = [
             "here is", "here's", "here are",
             "the answer is", "the solution is",
@@ -125,32 +125,32 @@ class InstructionFeatureExtractor:
         ]
 
         for item in tqdm(data, desc="提取回答模板"):
-            # 检查数据完整性 - 需要至少2条消息
+            # Check data integrity - need at least 2 messages
             if not item.get("messages") or len(item["messages"]) < 2:
                 skipped += 1
                 continue
 
-            # 检查第二条消息是否有content
+            # Check whether the second message has content
             if not item["messages"][1].get('content'):
                 skipped += 1
                 continue
 
-            response = item["messages"][1]['content'].lower()[:100]  # 只看开头100字符
+            response = item["messages"][1]['content'].lower()[:100]  # Only look at the first 100 characters
 
             for starter in template_starters:
                 if response.startswith(starter):
                     template_counter[starter] += 1
 
-        # 选择高频模板
+        # Select frequent templates
         threshold = len(data) * 0.01
         template_patterns = [template for template, count in template_counter.items() if count > threshold]
 
-        # 添加结构化模板标记
+        # Add structural template markers
         structural_patterns = [
-            r'^\d+\.',  # 数字列表
-            r'^[\*\-\•]',  # 项目符号
-            r'^step \d+:',  # 步骤格式
-            r'```',  # 代码块
+            r'^\d+\.',  # Numbered list
+            r'^[\*\-\•]',  # Bullet points
+            r'^step \d+:',  # Step format
+            r'```',  # Code block
         ]
 
         template_patterns.extend(structural_patterns)
@@ -163,17 +163,17 @@ class InstructionFeatureExtractor:
 
     def extract_instruction_prefixes(self, data: List[Dict]) -> List[str]:
         """
-        提取指令前缀
+        Extract instruction prefixes
 
-        为什么提取：
-        - 指令通常有固定的开头模式
-        - 帮助快速识别指令格式文本
+        Why extract:
+        - Instructions often have fixed opening patterns
+        - Helps quickly identify instruction-format text
         """
         prefix_counter = Counter()
         skipped = 0
 
         for item in tqdm(data, desc="提取指令前缀"):
-            # 检查数据完整性
+            # Check data integrity
             if not item.get("messages") or len(item["messages"]) < 1:
                 skipped += 1
                 continue
@@ -184,13 +184,13 @@ class InstructionFeatureExtractor:
 
             instruction = item["messages"][0]['content']
 
-            # 提取前3个词作为前缀
+            # Extract first 3 words as a prefix
             words = instruction.split()[:3]
             if words:
                 prefix = " ".join(words).lower()
                 prefix_counter[prefix] += 1
 
-        # 选择高频前缀
+        # Select frequent prefixes
         threshold = len(data) * 0.005
         prefixes = [prefix for prefix, count in prefix_counter.items() if count > threshold]
 
@@ -202,11 +202,11 @@ class InstructionFeatureExtractor:
 
     def extract_domain_keywords(self, data: List[Dict]) -> Dict[str, Set[str]]:
         """
-        提取领域关键词
+        Extract domain keywords
 
-        为什么提取：
-        - 了解指令覆盖的知识领域
-        - 帮助分类和筛选相关的预训练数据
+        Why extract:
+        - Understand the knowledge domains covered by instructions
+        - Helps categorize and filter relevant pretraining data
         """
         domains = {
             "code": set(),
@@ -216,7 +216,7 @@ class InstructionFeatureExtractor:
             "general": set()
         }
 
-        # 领域特征词
+        # Domain indicator terms
         domain_indicators = {
             "code": ["function", "variable", "loop", "array", "class", "method", "algorithm", "debug"],
             "math": ["equation", "calculate", "solve", "formula", "theorem", "proof", "derivative"],
@@ -224,13 +224,13 @@ class InstructionFeatureExtractor:
             "writing": ["essay", "paragraph", "story", "narrative", "character", "plot", "introduction"],
         }
 
-        # 统计每个领域的关键词出现情况
+        # Count keyword occurrences per domain
         for domain, keywords in domain_indicators.items():
             keyword_counter = Counter()
             skipped = 0
 
             for item in tqdm(data, desc=f"提取{domain}领域关键词"):
-                # 检查数据完整性
+                # Check data integrity
                 if not item.get("messages") or len(item["messages"]) < 2:
                     skipped += 1
                     continue
@@ -244,14 +244,14 @@ class InstructionFeatureExtractor:
                     if keyword in text:
                         keyword_counter[keyword] += 1
 
-            # 选择高频关键词
+            # Select frequent keywords
             threshold = len(data) * 0.01
             domains[domain] = {kw for kw, count in keyword_counter.items() if count > threshold}
 
             if skipped > 0:
                 print(f"  跳过 {skipped} 个数据不完整的样本")
 
-        # 通用关键词（出现在多个领域）
+        # General keywords (union across domains)
         all_keywords = set()
         for kw_set in domains.values():
             all_keywords.update(kw_set)
@@ -263,16 +263,16 @@ class InstructionFeatureExtractor:
         return domains
 
     def extract_all_features(self, data: List[Dict]) -> Dict:
-        """提取所有特征"""
+        """Extract all features"""
 
-        # 添加所有提取器
+        # Add all extractors
         self.add_extractor(self.extract_instruction_verbs, "instruction_verbs")
         self.add_extractor(self.extract_question_patterns, "question_patterns")
         self.add_extractor(self.extract_response_templates, "response_templates")
         self.add_extractor(self.extract_instruction_prefixes, "instruction_prefixes")
         self.add_extractor(self.extract_domain_keywords, "domain_keywords")
 
-        # 执行提取
+        # Run extraction
         features = {}
         for func, name in self.extractors:
             print(f"\n提取特征: {name}")
@@ -295,11 +295,11 @@ def main():
 
     args = parser.parse_args()
 
-    # 加载数据
+    # Load data
     print(f"加载数据: {args.input_file}")
     data = []
 
-    # 先计算总行数用于进度条
+    # Count total lines first for the progress bar
     total_lines = 0
     with open(args.input_file, "r", encoding="utf-8") as f:
         for _ in f:
@@ -307,7 +307,7 @@ def main():
 
     print(f"文件总行数: {total_lines}")
 
-    # 使用进度条加载数据
+    # Load data with a progress bar
     with open(args.input_file, "r", encoding="utf-8") as f:
         for line in tqdm(f, total=total_lines, desc="加载数据"):
             data.append(json.loads(line))
@@ -316,17 +316,17 @@ def main():
 
     print(f"加载 {len(data)} 条数据")
 
-    # 提取特征
+    # Extract features
     extractor = InstructionFeatureExtractor()
     features = extractor.extract_all_features(data)
 
-    # 保存特征
+    # Save features
     os.makedirs(args.output_dir, exist_ok=True)
 
-    # 保存为JSON（用于查看）
+    # Save as JSON (for inspection)
     json_path = os.path.join(args.output_dir, "instruction_features.json")
 
-    # 转换set为list以便JSON序列化
+    # Convert sets to lists for JSON serialization
     json_features = {}
     for key, value in features.items():
         if isinstance(value, set):
@@ -340,7 +340,7 @@ def main():
     with open(json_path, "w", encoding="utf-8") as f:
         json.dump(json_features, f, indent=2, ensure_ascii=False)
 
-    # 保存为pickle（用于后续使用）
+    # Save as pickle (for downstream use)
     pickle_path = os.path.join(args.output_dir, "instruction_features.pkl")
     print("保存pickle格式特征文件...")
     with open(pickle_path, "wb") as f:
@@ -348,7 +348,7 @@ def main():
 
     print(f"特征保存到: {json_path} 和 {pickle_path}")
 
-    # 打印统计
+    # Print statistics
     print("\n=== 特征统计 ===")
     for name, feature in features.items():
         if isinstance(feature, (list, set)):

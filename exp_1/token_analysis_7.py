@@ -957,18 +957,18 @@ def parse_args():
     """
     )
 
-    # 输入输出路径
+    # Input/output paths
     parser.add_argument('--input_dir', type=str, default='/root/autodl-tmp/ift_memorization/results/exp1_generation_16', help='模型生成内容的输入目录')
     parser.add_argument('--output_dir', type=str, default='/root/autodl-tmp/ift_memorization/results/exp1_2/visualizations', help='分析结果保存目录')
     parser.add_argument('--vis_dir', type=str, default='/root/autodl-tmp/ift_memorization/results/exp1_2/visualizations', help='可视化图表保存目录')
-    # 模型配置
+    # Model configuration
     parser.add_argument('--model_scales', type=str, nargs='+', default=['1B', '7B', ],  help='要分析的模型规模列表')
-    # 数据类型（根据附件2的文件名）
+    # Data types (based on filenames in Attachment 2)
     parser.add_argument('--data_types', type=str, nargs='+',  default=['stackexchange', 'wiki-fact', 'dclm-privacy'], help='要分析的数据类型列表')
-    # 数据参数
+    # Data parameters
     parser.add_argument('--prefix_length', type=int, default=16, help='前缀长度（默认16）')
     parser.add_argument('--num_samples', type=int, default=100, help='样本数量（默认50）')
-    # 分析参数
+    # Analysis parameters
     parser.add_argument('--top_k', type=int, default=10,  help='分析Top-K个最高概率的token（默认10）')
 
     return parser.parse_args()

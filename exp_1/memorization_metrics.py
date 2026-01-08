@@ -1,6 +1,6 @@
 """
-Memorization评估指标实现
-实现5种核心记忆衡量指标
+Memorization evaluation metrics implementation
+Implement 5 core memorization measurement metrics
 """
 import numpy as np
 from typing import List, Dict, Tuple, Optional, Union
@@ -22,11 +22,11 @@ class MemorizationMetrics:
             sentence_model_name: str = "/root/autodl-tmp/ift_memorization/model_cache/sentence_transformers"
     ):
         """
-        初始化评估指标
+        Initialize evaluation metrics.
 
         Args:
-            tokenizer_name: tokenizer模型名称（可选）
-            sentence_model_name: 句子embedding模型名称
+            tokenizer_name: tokenizer model name (optional)
+            sentence_model_name: sentence embedding model name/path
         """
         self.tokenizer = None
         if tokenizer_name:
@@ -39,9 +39,9 @@ class MemorizationMetrics:
             self.sentence_model = SentenceTransformer(sentence_model_name)
         except Exception as e:
             print(f"警告: 加载 sentence model '{sentence_model_name}' 时发生错误。")
-            # print(f"具体的错误类型是: {type(e).__name__}")
-            # print(f"错误详细信息: {e}")
-            # 打印完整的错误堆栈，这对于调试非常有用
+            # print(f"Specific error type: {type(e).__name__}")
+            # print(f"Error details: {e}")
+            # Print full traceback; useful for debugging
             # traceback.print_exc()
             self.sentence_model = None
 
@@ -54,16 +54,17 @@ class MemorizationMetrics:
             reference_tokens: List[List[int]]
     ) -> Dict[str, float]:
         """
-        第一种：精确匹配率 (Exact Match Rate)
+        Method 1: Exact Match Rate (Exact Match Rate)
 
-        模型生成的内容与训练数据原文完全一致的比例。这是最严格的指标。
+        The proportion of samples where the model output exactly matches the training
+        reference text. This is the strictest metric.
 
         Args:
-            generated_tokens: 生成的token列表
-            reference_tokens: 参考token列表
+            generated_tokens: list of generated token sequences
+            reference_tokens: list of reference token sequences
 
         Returns:
-            精确匹配指标
+            exact match metrics
         """
         assert len(generated_tokens) == len(reference_tokens)
 
@@ -86,23 +87,23 @@ class MemorizationMetrics:
             reference_tokens: List[List[int]] = None
     ) -> Dict[str, float]:
         """
-        第二种：ROUGE / BLEU 分数
+        Method 2: ROUGE / BLEU scores
 
-        用于衡量生成文本和参考文本之间的n-gram重叠度。
-        可以捕捉到近似记忆（near-verbatim memorization）。
+        Measures n-gram overlap between generated text and reference text.
+        Can capture near-verbatim memorization.
 
         Args:
-            generated_texts: 生成的文本列表
-            reference_texts: 参考文本列表
-            generated_tokens: 生成的token列表（可选，用于token级BLEU）
-            reference_tokens: 参考token列表（可选，用于token级BLEU）
+            generated_texts: list of generated texts
+            reference_texts: list of reference texts
+            generated_tokens: list of generated token sequences (optional, for token-level BLEU)
+            reference_tokens: list of reference token sequences (optional, for token-level BLEU)
 
         Returns:
-            ROUGE和BLEU指标
+            ROUGE and BLEU metrics
         """
         results = {}
 
-        # ROUGE scores (基于文本)
+        # ROUGE scores (text-based)
         if generated_texts and reference_texts:
             assert len(generated_texts) == len(reference_texts)
 
@@ -136,7 +137,7 @@ class MemorizationMetrics:
                 "rouge_l_std": np.std(rouge_l_scores)
             })
 
-        # BLEU scores (基于token，更精确)
+        # BLEU scores (token-based, more precise)
         if generated_tokens and reference_tokens:
             assert len(generated_tokens) == len(reference_tokens)
 
@@ -151,7 +152,7 @@ class MemorizationMetrics:
                     bleu_4_scores.append(0.0)
                     continue
 
-                # 将token ID转换为字符串用于BLEU计算
+                # Convert token IDs to strings for BLEU computation
                 gen_str_tokens = [str(t) for t in gen_tokens]
                 ref_str_tokens = [str(t) for t in ref_tokens]
 
@@ -192,31 +193,32 @@ class MemorizationMetrics:
             reference_texts: List[str] = None
     ) -> Dict[str, float]:
         """
-        第三种：编辑距离 (Edit Distance)
+        Method 3: Edit distance (Edit Distance)
 
-        生成文本需要经过多少次增、删、改才能变成原文。
-        距离越小，记忆程度越高。主要使用Token-level Edit Distance。
+        How many insertions, deletions, and substitutions are required to transform the
+        generated output into the reference. Smaller distance indicates stronger memorization.
+        Primarily uses token-level edit distance.
 
         Args:
-            generated_tokens: 生成的token列表
-            reference_tokens: 参考token列表
-            generated_texts: 生成的文本列表（可选）
-            reference_texts: 参考文本列表（可选）
+            generated_tokens: list of generated token sequences
+            reference_tokens: list of reference token sequences
+            generated_texts: list of generated texts (optional)
+            reference_texts: list of reference texts (optional)
 
         Returns:
-            编辑距离指标
+            edit distance metrics
         """
         assert len(generated_tokens) == len(reference_tokens)
 
         token_distances = []
         normalized_token_distances = []
 
-        # Token级编辑距离（主要指标）
+        # Token-level edit distance (primary metric)
         for gen_tokens, ref_tokens in zip(generated_tokens, reference_tokens):
             token_dist = editdistance.eval(gen_tokens, ref_tokens)
             token_distances.append(token_dist)
 
-            # 归一化token编辑距离
+            # Normalized token edit distance
             max_token_len = max(len(gen_tokens), len(ref_tokens))
             if max_token_len > 0:
                 normalized_token_distances.append(token_dist / max_token_len)
@@ -230,13 +232,13 @@ class MemorizationMetrics:
             "normalized_token_distance_std": np.std(normalized_token_distances)
         }
 
-        # 字符级编辑距离（补充指标）
+        # Character-level edit distance (auxiliary metric)
         if generated_texts and reference_texts:
             char_distances = []
             normalized_char_distances = []
 
             for i, (gen_text, ref_text) in enumerate(zip(generated_texts, reference_texts)):
-                if i < len(generated_tokens):  # 确保索引匹配
+                if i < len(generated_tokens):  # ensure index alignment
                     char_dist = editdistance.eval(gen_text, ref_text)
                     char_distances.append(char_dist)
 
@@ -262,16 +264,16 @@ class MemorizationMetrics:
             reference_texts: List[str]
     ) -> Dict[str, float]:
         """
-        第四种：语义相似度
+        Method 4: Semantic similarity
 
-        使用SentenceBERT等计算embedding相似度
+        Compute embedding similarity using SentenceBERT or similar models.
 
         Args:
-            generated_texts: 生成的文本列表
-            reference_texts: 参考文本列表
+            generated_texts: list of generated texts
+            reference_texts: list of reference texts
 
         Returns:
-            语义相似度指标
+            semantic similarity metrics
         """
         if self.sentence_model is None:
             return {
@@ -317,19 +319,19 @@ class MemorizationMetrics:
             logits: Optional[List[torch.Tensor]] = None
     ) -> Dict[str, float]:
         """
-        第五种：Likelihood, PPL, loss, logits
+        Method 5: Likelihood, PPL, loss, logits
 
-        基于模型输出概率计算记忆相关指标
+        Compute memorization-related metrics based on model output probabilities.
 
         Args:
-            top_tokens_list: 每个样本的每一步top-k token概率信息
-                格式: [sample][step][top_k_tokens]
-                每个token_info包含: {'token_id': int, 'probability': float, 'rank': int}
-            reference_tokens: 参考token列表
-            logits: 完整的logits张量（可选，如果有的话更精确）
+            top_tokens_list: Top-k token probability information for each step of each sample
+                Format: [sample][step][top_k_tokens]
+                Each token_info contains: {'token_id': int, 'probability': float, 'rank': int}
+            reference_tokens: reference token sequences
+            logits: full logits tensors (optional; more precise if available)
 
         Returns:
-            likelihood, perplexity, loss相关指标
+            likelihood, perplexity, loss related metrics
         """
         if not top_tokens_list or not reference_tokens:
             return {
@@ -367,7 +369,7 @@ class MemorizationMetrics:
                 total_positions += 1
                 sample_positions += 1
 
-                # 查找目标token在top-k中的位置和概率
+                # Find the target token's rank and probability in top-k
                 target_found = False
 
                 for rank, token_info in enumerate(step_top_tokens):
@@ -376,22 +378,22 @@ class MemorizationMetrics:
 
                     if token_id == target_token:
                         target_probs.append(prob)
-                        target_ranks.append(rank + 1)  # rank从1开始
+                        target_ranks.append(rank + 1)  # rank starts from 1
                         target_found = True
 
-                        # 计算log likelihood
+                        # Compute log likelihood
                         if prob > 0:
                             log_prob = np.log(prob)
                             sample_log_likelihood += log_prob
 
-                            # 计算cross-entropy loss
+                            # Compute cross-entropy loss
                             loss = -log_prob
                             losses.append(loss)
                         else:
-                            sample_log_likelihood += -100  # 避免log(0)
+                            sample_log_likelihood += -100  # avoid log(0)
                             losses.append(100)
 
-                        # 统计top-k命中率
+                        # Top-k hit statistics
                         if rank == 0:  # top-1
                             top1_hits += 1
                         if rank < 3:   # top-5
@@ -401,7 +403,7 @@ class MemorizationMetrics:
                         break
 
                 if not target_found:
-                    # 目标token不在top-k中，使用很小的概率
+                    # If the target token is not in top-k, use a very small probability
                     target_probs.append(1e-10)
                     target_ranks.append(float('inf'))
                     sample_log_likelihood += -100
@@ -410,7 +412,7 @@ class MemorizationMetrics:
             if sample_positions > 0:
                 log_likelihoods.append(sample_log_likelihood / sample_positions)
 
-        # 计算平均指标
+        # Compute aggregate metrics
         avg_log_likelihood = np.mean(log_likelihoods) if log_likelihoods else float('-inf')
         perplexity = np.exp(-avg_log_likelihood) if avg_log_likelihood != float('-inf') else float('inf')
         avg_loss = np.mean(losses) if losses else float('inf')
@@ -437,15 +439,16 @@ class MemorizationMetrics:
             samples: List[Dict]
     ) -> Dict[str, Dict]:
         """
-        从样本数据计算所有5种评估指标
+        Compute all 5 evaluation metric families from sample data.
 
         Args:
-            samples: 样本列表，每个样本包含generated_tokens, original_continuation_tokens等字段
+            samples: sample list; each sample contains fields such as generated_tokens,
+                     original_continuation_tokens, etc.
 
         Returns:
-            包含所有指标结果的字典
+            dictionary containing results for all metrics
         """
-        # 提取数据
+        # Extract data
         generated_tokens = []
         reference_tokens = []
         generated_texts = []
@@ -466,39 +469,39 @@ class MemorizationMetrics:
 
         results = {}
 
-        # 第一种：精确匹配率
+        # Method 1: Exact match rate
         if generated_tokens and reference_tokens:
             results["exact_match"] = self.exact_match_rate(generated_tokens, reference_tokens)
 
-        # 第二种：ROUGE/BLEU分数
+        # Method 2: ROUGE/BLEU scores
         if generated_texts and reference_texts:
             results["rouge_bleu"] = self.rouge_bleu_scores(
                 generated_texts, reference_texts, generated_tokens, reference_tokens
             )
 
-        # 第三种：编辑距离
+        # Method 3: Edit distance
         if generated_tokens and reference_tokens:
             results["edit_distance"] = self.edit_distance_metrics(
                 generated_tokens, reference_tokens, generated_texts, reference_texts
             )
 
-        # 第四种：语义相似度
+        # Method 4: Semantic similarity
         if generated_texts and reference_texts:
             results["semantic"] = self.semantic_similarity(generated_texts, reference_texts)
 
-        # 第五种：Likelihood, PPL, loss
+        # Method 5: Likelihood, PPL, loss
         if top_tokens_list and reference_tokens:
             results["likelihood"] = self.likelihood_ppl_loss_metrics(top_tokens_list, reference_tokens)
 
         return results
 
 
-# 使用示例
+# Example usage
 if __name__ == "__main__":
-    # 初始化评估器
+    # Initialize evaluator
     evaluator = MemorizationMetrics()
 
-    # 模拟样本数据
+    # Mock sample data
     samples = [
         {
             'generated_tokens': [3544, 6303, 323, 358, 1390],
@@ -518,7 +521,7 @@ if __name__ == "__main__":
         }
     ]
 
-    # 计算所有指标
+    # Compute all metrics
     results = evaluator.compute_all_metrics_from_data(samples)
 
     for metric_type, metrics in results.items():

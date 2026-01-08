@@ -1,5 +1,5 @@
 """
-分析下载的数据集特征（优化版本）
+Analyze downloaded dataset characteristics (optimized version)
 """
 import json
 import os
@@ -16,24 +16,25 @@ from tqdm import tqdm
 class DataAnalyzer:
     def __init__(self, max_words: int = 512):
         """
-        初始化分析器
+        Initialize the analyzer
 
         Args:
-            max_words: 每条数据最多处理的词数
+            max_words: Maximum number of words to process per sample
         """
         self.max_words = max_words
 
     def load_data(self, file_path: str) -> List[Dict]:
         """
-        加载JSONL格式数据，显示进度，并处理可能存在的格式错误。
+        Load JSONL data with progress display, and handle potential format errors.
 
-        **--- 修改部分 ---**
-        增加了try-except块来捕获JSON解析错误，使程序不会因单行数据损坏而崩溃。
+        **--- Modified Part ---**
+        Added a try-except block to catch JSON parsing errors so the program
+        will not crash due to a single corrupted line.
         """
         data = []
-        malformed_lines = 0  # 增加一个计数器，用于记录格式错误的行数
+        malformed_lines = 0  # Add a counter to record the number of malformed lines
 
-        # 先统计总行数以便tqdm正确显示进度
+        # Count total lines first so tqdm can display progress correctly
         try:
             with open(file_path, "r", encoding="utf-8") as f:
                 total_lines = sum(1 for _ in f)
@@ -41,17 +42,17 @@ class DataAnalyzer:
             print(f"错误：文件未找到 {file_path}")
             return []
 
-        # 带进度条加载数据
+        # Load data with a progress bar
         with open(file_path, "r", encoding="utf-8") as f:
             for i, line in enumerate(tqdm(f, total=total_lines, desc="加载数据")):
                 try:
-                    # 尝试解析当前行
+                    # Try to parse the current line
                     data.append(json.loads(line))
                 except json.JSONDecodeError:
-                    # 如果解析失败，则跳过这一行，并增加计数器
+                    # If parsing fails, skip this line and increment the counter
                     malformed_lines += 1
-                    # 可以选择性地打印一些错误信息来帮助调试，但对于大量错误，这会刷屏
-                    # if malformed_lines < 5: # 只打印前几个错误
+                    # Optionally print error messages for debugging, but for many errors this will spam the output
+                    # if malformed_lines < 5: # Print only the first few errors
                     #     print(f"警告：跳过格式错误的第 {i+1} 行。内容：{line.strip()}")
 
         if malformed_lines > 0:
@@ -61,25 +62,25 @@ class DataAnalyzer:
 
     def analyze_length_distribution(self, texts: List[str]) -> Dict:
         """
-        分析文本长度分布（基于word count，快速版本）
+        Analyze text length distribution (based on word count, fast version)
 
-        为什么做这个分析：
-        - 了解数据的长度特征，用于后续分段策略
-        - 确定合适的context length划分
+        Why do this analysis:
+        - Understand length characteristics for subsequent chunking strategies
+        - Determine appropriate context length segmentation
         """
         char_lengths = []
         word_lengths = []
 
-        # 使用tqdm显示进度
+        # Use tqdm to display progress
         for text in tqdm(texts, desc="分析长度分布"):
-            # 只处理前max_words个词
+            # Only process the first max_words words
             words = text.split()[:self.max_words]
 
-            # 字符长度
+            # Character length
             truncated_text = ' '.join(words)
             char_lengths.append(len(truncated_text))
 
-            # 词数
+            # Word count
             word_lengths.append(len(words))
 
         return {
@@ -105,22 +106,22 @@ class DataAnalyzer:
 
     def analyze_text_patterns(self, texts: List[str]) -> Dict:
         """
-        分析文本模式（优化版本，只处理前512词）
+        Analyze text patterns (optimized version, only process first 512 words)
 
-        为什么做这个分析：
-        - 识别指令格式特征（问题、步骤等）
-        - 了解数据的结构化程度
+        Why do this analysis:
+        - Identify instruction-format features (questions, steps, etc.)
+        - Understand the degree of structure in the data
         """
         patterns = {
-            "has_question": 0,  # 包含问句
-            "has_steps": 0,  # 包含步骤格式
-            "has_list": 0,  # 包含列表
-            "has_code": 0,  # 包含代码
-            "has_url": 0,  # 包含URL
-            "language_mix": 0,  # 中英混合
+            "has_question": 0,  # Contains a question
+            "has_steps": 0,  # Contains step-style formatting
+            "has_list": 0,  # Contains lists
+            "has_code": 0,  # Contains code
+            "has_url": 0,  # Contains URLs
+            "language_mix": 0,  # Mixed Chinese/English
         }
 
-        # 预编译正则表达式以提高性能
+        # Pre-compile regex patterns for performance
         question_pattern = re.compile(r'\?|how |what |why |when |where |who ', re.IGNORECASE)
         steps_pattern = re.compile(r'step \d|first,|second,|finally|then |next ', re.IGNORECASE)
         list_pattern = re.compile(r'^\s*[\d\-\*]\.\s+', re.MULTILINE)
@@ -129,11 +130,11 @@ class DataAnalyzer:
         chinese_pattern = re.compile(r'[\u4e00-\u9fff]')
 
         for text in tqdm(texts, desc="分析文本模式"):
-            # 只处理前max_words个词
+            # Only process the first max_words words
             words = text.split()[:self.max_words]
             truncated_text = ' '.join(words)
 
-            # 检测各种模式
+            # Detect patterns
             if question_pattern.search(truncated_text):
                 patterns["has_question"] += 1
             if steps_pattern.search(truncated_text):
@@ -147,7 +148,7 @@ class DataAnalyzer:
             if chinese_pattern.search(truncated_text):
                 patterns["language_mix"] += 1
 
-        # 转换为百分比
+        # Convert to percentages
         total = len(texts)
         patterns_pct = {k: (v / total) * 100 for k, v in patterns.items()}
 
@@ -155,20 +156,20 @@ class DataAnalyzer:
 
     def analyze_vocabulary(self, texts: List[str], top_k: int = 100) -> Dict:
         """
-        分析词汇特征（基于word分割，快速版本）
+        Analyze vocabulary characteristics (word-split based, fast version)
 
-        为什么做这个分析：
-        - 了解数据的词汇多样性
-        - 识别高频词和特殊词汇
+        Why do this analysis:
+        - Understand vocabulary diversity
+        - Identify high-frequency words and special tokens/words
         """
         all_words = []
-        # 只采样前1000条以节省时间
+        # Only sample the first 1000 items to save time
         sample_size = max(1000, len(texts))
 
         for text in tqdm(texts[:sample_size], desc="分析词汇"):
-            # 只处理前max_words个词
+            # Only process the first max_words words
             words = text.split()[:self.max_words]
-            # 转小写以统一计数
+            # Lowercase for consistent counting
             all_words.extend([w.lower() for w in words])
 
         vocab_counter = Counter(all_words)
@@ -181,10 +182,10 @@ class DataAnalyzer:
         }
 
     def plot_distributions(self, analysis_results: Dict, output_dir: str):
-        """绘制分布图"""
+        """Plot distribution figures"""
         os.makedirs(output_dir, exist_ok=True)
 
-        # 绘制word长度分布
+        # Plot word length distributions
         plt.figure(figsize=(12, 4))
 
         plt.subplot(1, 3, 1)
@@ -201,7 +202,7 @@ class DataAnalyzer:
         plt.title("Log Word Length Distribution")
 
         plt.subplot(1, 3, 3)
-        # 绘制文本模式
+        # Plot text patterns
         patterns = analysis_results["patterns"]
         plt.bar(range(len(patterns)), list(patterns.values()))
         plt.xticks(range(len(patterns)), list(patterns.keys()), rotation=45, ha='right')
@@ -235,13 +236,13 @@ def main():
         data = analyzer.load_data(file_path)
         texts = [item["text"] for item in data]
 
-        # 执行分析
+        # Run analyses
         print("\n开始分析...")
         length_analysis = analyzer.analyze_length_distribution(texts[:1000000])
         pattern_analysis = analyzer.analyze_text_patterns(texts[:1000000])
         vocab_analysis = analyzer.analyze_vocabulary(texts[:1000000])
 
-        # 整合结果
+        # Merge results
         results = {
             "dataset_name": dataset_name,
             "sample_size": len(texts),
@@ -250,7 +251,7 @@ def main():
             "vocabulary": vocab_analysis
         }
 
-        # 打印摘要
+        # Print summary
         print(f"\n{'='*60}")
         print("分析结果摘要：")
         print(f"{'='*60}")
@@ -271,7 +272,7 @@ def main():
         print(f"唯一词数: {vocab_analysis['unique_words']:,}")
         print(f"总词数: {vocab_analysis['total_words']:,}")
 
-        # 保存详细结果
+        # Save detailed results
         os.makedirs(args.output_dir, exist_ok=True)
         output_path = os.path.join(args.output_dir, f"{dataset_name}_analysis.json")
 
@@ -289,7 +290,7 @@ def main():
 
         print(f"\n保存分析结果...")
         with open(output_path, "w", encoding="utf-8") as f:
-            # 移除无法序列化的数据
+            # Remove non-serializable fields
             results["length"].pop("char_lengths")
             results["length"].pop("word_lengths")
             results["vocabulary"].pop("top_words")

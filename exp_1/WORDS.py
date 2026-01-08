@@ -1,6 +1,6 @@
 class WORDSSet:
     # def __init__(self):
-    # 定义指令动词
+    # Define instruction verbs
     instruct1 = [
         "translate", "explain", "summarize", "retrieve",
         "revise", 'generate', 'describe', 'classify', 'create',
@@ -27,34 +27,34 @@ class WORDSSet:
 
     instruction_verbs = set(instruct1 + instruct2 + instruct3)
 
-    # 礼貌标记词列表
+    # Politeness marker word list
     politeness_markers = {
-        # 请求词
+        # Request words
         'please', 'kindly', 'may',
 
-        # 感谢词
+        # Gratitude words
         'thanks', 'thank', 'cheers', 'appreciate', 'grateful',
 
-        # 道歉词
+        # Apology words
         'sorry', 'apologies', 'pardon', 'excuse', 'forgive',
 
-        # 问候词
+        # Greeting words
         'hi', 'hello', 'greetings', 'welcome', 'regards',
 
-        # 尊称词
+        # Honorifics / titles
         'sir', 'madam', 'ma\'am', 'miss', 'mr', 'mrs', 'ms',
 
-        # 祝福/祝贺词
+        # Blessing / congratulations words
         'congratulations', 'congrats', 'bless', 'wishes',
 
-        # 副词类礼貌词
+        # Adverbial politeness words
         'respectfully', 'sincerely', 'cordially', 'humbly',
         'graciously', 'gently', 'warmly',
 
-        # 口语化礼貌词
+        # Colloquial politeness words
         'dear', 'mate', 'friend', 'folks',
 
-        # 短语形式（保留原有）
+        # Phrase forms (keep original entries)
         'thank you', 'excuse me', 'pardon me', 'would you', 'could you',
         'may i', 'might i', 'might you', 'should you',
         'if you don\'t mind', 'if possible', 'when you get a chance',
@@ -64,55 +64,55 @@ class WORDSSet:
         'many thanks', 'appreciate it'
     }
 
-    # 结构化标记词列表
+    # Structural marker word list
     structure_markers = {
-        # 顺序词
+        # Sequence words
         'first', 'firstly', 'second', 'secondly', 'third', 'thirdly',
         'fourth', 'fifth', 'next', 'then', 'lastly', 'finally',
         'afterwards', 'subsequently', 'eventually',
         'step 1', 'step 2', 'step 3', 'step 4',
 
-        # 添加/递进类
+        # Addition / progression
         'also', 'besides', 'furthermore', 'moreover', 'additionally',
         'in addition', 'as well', 'likewise', 'similarly', 'equally',
         'what\'s more', 'not only', 'along with',
 
-        # 对比/转折类
+        # Contrast / concession
         'however', 'but', 'yet', 'nevertheless', 'nonetheless',
         'although', 'though', 'even though', 'despite', 'in spite of',
         'on the other hand', 'in contrast', 'conversely', 'whereas',
         'while', 'instead', 'rather', 'alternatively',
 
-        # 因果类
+        # Causality
         'therefore', 'thus', 'hence', 'consequently', 'accordingly',
         'as a result', 'for this reason', 'because', 'since', 'so',
         'due to', 'owing to', 'thanks to', 'as', 'for',
 
-        # 举例类
+        # Exemplification
         'for example', 'for instance', 'such as', 'like',
         'namely', 'specifically', 'in particular', 'especially',
         'to illustrate', 'as an illustration',
 
-        # 强调类
+        # Emphasis
         'indeed', 'in fact', 'actually', 'certainly', 'obviously',
         'clearly', 'undoubtedly', 'without doubt', 'of course',
         'above all', 'most importantly', 'primarily',
 
-        # 总结类
+        # Summarization
         'in conclusion', 'to conclude', 'to summarize', 'in summary',
         'overall', 'in short', 'in brief', 'to sum up',
         'all in all', 'on the whole', 'in general',
 
-        # 列表引导词
+        # List introducers
         'here are', 'here\'s', 'let me', 'i\'ll', 'the following',
         'below', 'above', 'as follows', 'listed below',
 
-        # 时间关系词
+        # Temporal relation words
         'meanwhile', 'simultaneously', 'at the same time',
         'before', 'after', 'during', 'until', 'when', 'whenever'
     }
 
-    # 疑问词列表
+    # Question word list
     question_words = {
         'what', 'how', 'why', 'where', 'when', 'who', 'which', 'whose', 'whom',
         'whatever', 'however', 'wherever', 'whenever', 'whoever', 'whichever',
@@ -122,7 +122,7 @@ class WORDSSet:
         'have', 'has', 'had', 'having'
     }
 
-    # 实验3：确定性/不确定性词汇
+    # Experiment 3: certainty/uncertainty vocabulary
     certainty_markers = {
         'definitely', 'certainly', 'clearly', 'obviously', 'undoubtedly', 'absolutely',
         'surely', 'indeed', 'exactly', 'precisely', 'unquestionably', 'indubitably',
@@ -154,7 +154,7 @@ class WORDSSet:
         'tentative', 'provisional', 'temporary', 'qualified', 'partial', 'incomplete'
     }
 
-    # 语义转折词
+    # Semantic transition words
     transition_markers = {
         'however', 'but', 'yet', 'nevertheless', 'nonetheless', 'although', 'though',
         'despite', 'while', 'whereas', 'conversely', 'instead', 'rather', 'alternatively',
@@ -172,7 +172,7 @@ class WORDSSet:
         'sometimes', 'occasionally', 'rarely', 'seldom', 'hardly', 'scarcely'
     }
 
-    # 实验4：完整答案相关标记
+    # Experiment 4: full-answer-related markers
     conclusion_markers = {
         'conclusion', 'conclude', 'summary', 'summarize', 'summarizing', 'summarized',
         'overall', 'finally', 'therefore', 'thus', 'hence', 'consequently',
@@ -187,7 +187,7 @@ class WORDSSet:
         'end', 'finish', 'complete', 'close', 'terminate', 'cease', 'stop'
     }
 
-    # 任务完成标记词
+    # Task completion marker words
     task_completion_markers = {
         'steps', 'process', 'method', 'approach', 'solution', 'answer', 'result',
         'outcome', 'complete', 'completed', 'completing', 'finished', 'finishing',
@@ -207,7 +207,7 @@ class WORDSSet:
         'success', 'successful', 'successfully', 'effectively', 'efficiently'
     }
 
-    # 情态动词
+    # Modal verbs
     modal_words = {
         # Core modal verbs
         "can", "could", "would", "should", "may", "might", "must",

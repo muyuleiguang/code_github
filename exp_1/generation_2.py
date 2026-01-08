@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-实验1.1 - 模型生成内容（修改版）
-使用base和sft模型对预训练测试数据进行推理生成，保存完整的生成信息用于后续分析
-增加动态批处理功能
+Experiment 1.1 - Model-generated content (revised)
+Use base and sft models to run inference on pretraining test data and save full generation info for subsequent analysis
+Add dynamic batching functionality
 """
 
 import json
@@ -20,30 +20,30 @@ import gc
 
 def load_model_and_tokenizer(model_path: str, device: str = 'auto') -> Tuple[Any, Any]:
     """
-    加载模型和分词器
+    Load model and tokenizer
 
     Args:
-        model_path: 模型路径
-        device: 设备类型 ('auto', 'cuda', 'cpu')
+        model_path: Model path
+        device: Device type ('auto', 'cuda', 'cpu')
 
     Returns:
-        model: 加载的模型
-        tokenizer: 对应的分词器
+        model: Loaded model
+        tokenizer: Corresponding tokenizer
     """
     print(f"正在加载模型: {model_path}")
 
-    # 设置设备
+    # Set device
     if device == 'auto':
         device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
-    # 加载分词器
+    # Load tokenizer
     tokenizer = AutoTokenizer.from_pretrained(model_path, trust_remote_code=True)
 
-    # 设置pad_token
+    # Set pad_token
     if tokenizer.pad_token is None:
         tokenizer.pad_token = tokenizer.eos_token
 
-    # 加载模型
+    # Load model
     model = AutoModelForCausalLM.from_pretrained(
         model_path,
         torch_dtype=torch.float32 if device == 'cuda' else torch.float32,
@@ -62,15 +62,15 @@ def load_model_and_tokenizer(model_path: str, device: str = 'auto') -> Tuple[Any
 
 def load_test_data(data_dir: str, datasets: List[str], max_samples: int = None) -> Dict[str, List[Dict]]:
     """
-    加载测试数据
+    Load test data
 
     Args:
-        data_dir: 数据目录
-        datasets: 要加载的数据集列表
-        max_samples: 每种类型最大样本数，None表示加载全部
+        data_dir: Data directory
+        datasets: List of datasets to load
+        max_samples: Maximum number of samples per dataset; None means load all
 
     Returns:
-        data_dict: 按类型分组的测试数据
+        data_dict: Test data grouped by type
     """
     data_dict = {}
 
@@ -92,7 +92,7 @@ def load_test_data(data_dir: str, datasets: List[str], max_samples: int = None) 
             with open(filepath, 'r', encoding='utf-8') as f:
                 data_list = [json.loads(line) for line in f]
 
-            # 限制样本数量
+            # Limit the number of samples
             if max_samples and len(data_list) > max_samples:
                 data_list = data_list[:max_samples]
 
@@ -107,22 +107,22 @@ def load_test_data(data_dir: str, datasets: List[str], max_samples: int = None) 
 
 def extract_text_from_sample(sample: Dict) -> str:
     """
-    从样本中提取文本内容
+    Extract text content from a sample
 
     Args:
-        sample: 数据样本
+        sample: Data sample
 
     Returns:
-        text: 提取的文本内容
+        text: Extracted text content
     """
-    # 尝试不同的文本字段名
+    # Try different possible text field names
     text_fields = ['text', 'content', 'passage', 'document']
 
     for field in text_fields:
         if field in sample and isinstance(sample[field], str):
             return sample[field]
 
-    # 如果没有找到标准字段，寻找最长的字符串字段
+    # If no standard field is found, choose the longest string field
     max_len = 0
     max_text = ""
     for key, value in sample.items():
@@ -136,18 +136,18 @@ def extract_text_from_sample(sample: Dict) -> str:
 def prepare_batch_inputs(batch_samples: List[Dict], prefix_length: int, max_new_tokens: int, tokenizer: Any) -> Tuple[
     List[Dict], torch.Tensor, List[int]]:
     """
-    为批处理准备输入数据
+    Prepare input data for batching
 
     Args:
-        batch_samples: 批处理样本列表
-        prefix_length: 前缀长度
-        max_new_tokens: 最大生成token数
-        tokenizer: 分词器
+        batch_samples: List of samples in the batch
+        prefix_length: Prefix length
+        max_new_tokens: Maximum number of new tokens to generate
+        tokenizer: Tokenizer
 
     Returns:
-        batch_info: 每个样本的处理信息
-        input_ids: 批处理的输入tensor
-        prefix_lengths: 每个样本的实际前缀长度
+        batch_info: Processing info for each sample
+        input_ids: Batched input tensor
+        prefix_lengths: Actual prefix length for each sample
     """
     batch_info = []
     input_ids_list = []
@@ -158,19 +158,19 @@ def prepare_batch_inputs(batch_samples: List[Dict], prefix_length: int, max_new_
         if not text or len(text.strip()) < 50:
             continue
 
-        # 对原始文本进行tokenization
+        # Tokenize the raw text
         full_tokens = tokenizer.encode(text, add_special_tokens=False)
 
-        # 检查前缀长度是否合理
+        # Check whether prefix length is reasonable
         actual_prefix_length = prefix_length
         if prefix_length >= len(full_tokens):
             actual_prefix_length = max(1, len(full_tokens) - 10)
 
-        # 提取前缀和原始续写
+        # Extract prefix and the original continuation
         prefix_tokens = full_tokens[:actual_prefix_length]
         original_continuation_tokens = full_tokens[actual_prefix_length:actual_prefix_length + max_new_tokens]
 
-        # 保存样本信息
+        # Save sample info
         batch_info.append({
             'sample': sample,
             'text': text,
@@ -187,7 +187,7 @@ def prepare_batch_inputs(batch_samples: List[Dict], prefix_length: int, max_new_
     if not input_ids_list:
         return [], torch.empty((0, 0)), []
 
-    # 创建批处理tensor，使用padding
+    # Create batched tensor with padding
     max_prefix_len = max(len(ids) for ids in input_ids_list)
     batch_input_ids = []
 
@@ -204,22 +204,22 @@ def generate_batch_with_prefix(model: Any, tokenizer: Any, batch_samples: List[D
                                prefix_length: int, max_new_tokens: int = 100,
                                temperature: float = 0.0, top_k_save: int = 10) -> List[Dict[str, Any]]:
     """
-    批处理生成文本，并保存详细信息
+    Generate text in batch and save detailed information
 
     Args:
-        model: 语言模型
-        tokenizer: 分词器
-        batch_samples: 批处理样本列表
-        prefix_length: 前缀长度（token数）
-        max_new_tokens: 最大生成token数
-        temperature: 生成温度，0表示贪婪解码
-        top_k_save: 保存top-k的概率信息
+        model: Language model
+        tokenizer: Tokenizer
+        batch_samples: List of samples in the batch
+        prefix_length: Prefix length (number of tokens)
+        max_new_tokens: Maximum number of new tokens to generate
+        temperature: Generation temperature; 0 means greedy decoding
+        top_k_save: Save top-k probability info
 
     Returns:
-        results: 包含生成结果和分析信息的字典列表
+        results: List of dicts containing generation results and analysis info
     """
     with torch.no_grad():
-        # 准备批处理输入
+        # Prepare batched inputs
         batch_info, input_ids, prefix_lengths = prepare_batch_inputs(
             batch_samples, prefix_length, max_new_tokens, tokenizer
         )
@@ -227,13 +227,13 @@ def generate_batch_with_prefix(model: Any, tokenizer: Any, batch_samples: List[D
         if not batch_info:
             return []
 
-        # 移动到设备
+        # Move to device
         input_ids = input_ids.to(model.device)
 
-        # 创建attention mask
+        # Create attention mask
         attention_mask = (input_ids != tokenizer.pad_token_id).long()
 
-        # 生成文本
+        # Generate text
         generation_config = {
             'max_new_tokens': max_new_tokens,
             'do_sample': temperature > 0,
@@ -241,33 +241,33 @@ def generate_batch_with_prefix(model: Any, tokenizer: Any, batch_samples: List[D
             'pad_token_id': tokenizer.pad_token_id,
             'attention_mask': attention_mask,
             'return_dict_in_generate': True,
-            'output_scores': True,  # 返回每步的logits
+            'output_scores': True,  # Return logits at each step
         }
 
         outputs = model.generate(input_ids, **generation_config)
 
-        # 处理每个样本的结果
+        # Process results for each sample
         results = []
         for i, info in enumerate(batch_info):
             try:
-                # 获取原始前缀长度（去除padding）
+                # Original prefix length (without padding)
                 original_prefix_len = prefix_lengths[i]
 
-                # 提取生成的token（不包括输入部分）
+                # Extract generated tokens (excluding the input portion)
                 generated_sequence = outputs.sequences[i]
-                # 找到实际前缀结束的位置（考虑padding）
+                # Locate the end position of the actual prefix (considering padding)
                 prefix_end_pos = original_prefix_len
                 generated_token_ids = generated_sequence[prefix_end_pos:].cpu().tolist()
 
-                # 移除pad tokens
+                # Remove pad tokens
                 generated_token_ids = [tid for tid in generated_token_ids if tid != tokenizer.pad_token_id]
                 generated_text = tokenizer.decode(generated_token_ids, skip_special_tokens=True)
 
-                # 处理logits和概率（只保留top-k）- 简化处理，因为批处理时scores处理比较复杂
+                # Process logits/probabilities (keep top-k only) - simplified since batch scores are more complex
                 top_tokens_list = []
                 if hasattr(outputs, 'scores') and outputs.scores and len(generated_token_ids) > 0:
-                    # 由于批处理的复杂性，这里简化处理scores
-                    # 如果需要详细的token概率，可以考虑单独处理或使用其他方法
+                    # Due to batching complexity, handle scores in a simplified manner here
+                    # If detailed token probabilities are needed, consider single-sample processing or other methods
                     for step_idx, step_logits in enumerate(outputs.scores):
                         if step_idx >= len(generated_token_ids):
                             break
@@ -275,7 +275,7 @@ def generate_batch_with_prefix(model: Any, tokenizer: Any, batch_samples: List[D
                         step_logits_i = step_logits[i].cpu()
                         step_probs = torch.softmax(step_logits_i, dim=-1)
 
-                        # 保存top-k tokens信息
+                        # Save top-k token info
                         top_probs, top_indices = torch.topk(step_probs, k=min(top_k_save, len(step_probs)))
                         top_tokens = [
                             {
@@ -288,7 +288,7 @@ def generate_batch_with_prefix(model: Any, tokenizer: Any, batch_samples: List[D
                         ]
                         top_tokens_list.append(top_tokens)
 
-                # 构建结果字典
+                # Build result dict
                 result = {
                     'prefix_text': info['prefix_text'],
                     'generated_text': generated_text,
@@ -303,7 +303,7 @@ def generate_batch_with_prefix(model: Any, tokenizer: Any, batch_samples: List[D
 
             except Exception as e:
                 print(f"处理批次中第 {i} 个样本时出错: {e}")
-                # 添加空结果以保持索引对应
+                # Add an empty result to preserve index alignment
                 results.append({
                     'prefix_text': "",
                     'generated_text': "",
@@ -319,24 +319,24 @@ def generate_batch_with_prefix(model: Any, tokenizer: Any, batch_samples: List[D
 
 
 class DynamicBatchProcessor:
-    """动态批处理器"""
+    """Dynamic batch processor"""
 
     def __init__(self, initial_batch_size: int = 128, min_batch_size: int = 1, max_batch_size: int = 256):
         self.current_batch_size = initial_batch_size
         self.min_batch_size = min_batch_size
         self.max_batch_size = max_batch_size
         self.success_count = 0
-        self.consecutive_success_threshold = 5  # 连续成功几次后尝试增加批处理大小
+        self.consecutive_success_threshold = 5  # Increase batch size after N consecutive successes
 
     def adjust_batch_size_on_oom(self):
-        """OOM时减少批处理大小"""
+        """Reduce batch size on OOM"""
         old_size = self.current_batch_size
         self.current_batch_size = max(self.min_batch_size, self.current_batch_size // 2)
         self.success_count = 0
         print(f"OOM检测到，批处理大小从 {old_size} 减少到 {self.current_batch_size}")
 
     def adjust_batch_size_on_success(self):
-        """成功时可能增加批处理大小"""
+        """Optionally increase batch size on success"""
         self.success_count += 1
         if (self.success_count >= self.consecutive_success_threshold and
                 self.current_batch_size < self.max_batch_size):
@@ -353,24 +353,24 @@ class DynamicBatchProcessor:
 def process_single_dataset(model: Any, tokenizer: Any, data_type: str, data_list: List[Dict],
                            prefix_length: int, max_new_tokens: int, top_k_save: int) -> List[Dict]:
     """
-    处理单个数据集在特定前缀长度下的生成（使用动态批处理）
+    Process generation for a single dataset under a specific prefix length (using dynamic batching)
 
     Args:
-        model: 语言模型
-        tokenizer: 分词器
-        data_type: 数据集类型
-        data_list: 数据样本列表
-        prefix_length: 前缀长度
-        max_new_tokens: 最大生成token数
-        top_k_save: 保存top-k概率信息
+        model: Language model
+        tokenizer: Tokenizer
+        data_type: Dataset type
+        data_list: List of data samples
+        prefix_length: Prefix length
+        max_new_tokens: Maximum number of new tokens to generate
+        top_k_save: Save top-k probability info
 
     Returns:
-        results: 生成结果列表
+        results: List of generation results
     """
     results = []
     batch_processor = DynamicBatchProcessor(initial_batch_size=512, max_batch_size=1024)
 
-    # 过滤有效样本
+    # Filter valid samples
     valid_samples = []
     for i, sample in enumerate(data_list):
         text = extract_text_from_sample(sample)
@@ -383,7 +383,7 @@ def process_single_dataset(model: Any, tokenizer: Any, data_type: str, data_list
         print(f"数据集 {data_type} 没有有效样本")
         return results
 
-    # 使用tqdm显示进度
+    # Use tqdm to show progress
     pbar = tqdm(total=len(valid_samples), desc=f"生成-{data_type}-prefix{prefix_length}-new{max_new_tokens}")
 
     i = 0
@@ -392,13 +392,13 @@ def process_single_dataset(model: Any, tokenizer: Any, data_type: str, data_list
         batch_samples = valid_samples[i:i + batch_size]
 
         try:
-            # 批处理生成
+            # Batch generation
             batch_results = generate_batch_with_prefix(
                 model, tokenizer, batch_samples, prefix_length,
                 max_new_tokens, top_k_save=top_k_save
             )
 
-            # 添加元信息并合并结果
+            # Add metadata and merge results
             for j, (sample, result) in enumerate(zip(batch_samples, batch_results)):
                 result.update({
                     'sample_id': sample.get('sample_id', i + j),
@@ -406,14 +406,14 @@ def process_single_dataset(model: Any, tokenizer: Any, data_type: str, data_list
                 })
                 results.append(result)
 
-            # 成功处理，调整批处理大小
+            # Successfully processed; adjust batch size
             batch_processor.adjust_batch_size_on_success()
 
-            # 更新进度
+            # Update progress
             pbar.update(len(batch_samples))
             i += len(batch_samples)
 
-            # 清理显存
+            # Clear GPU memory
             if torch.cuda.is_available():
                 torch.cuda.empty_cache()
             gc.collect()
@@ -423,28 +423,28 @@ def process_single_dataset(model: Any, tokenizer: Any, data_type: str, data_list
                 print(f"批处理大小 {batch_size} 时发生OOM")
                 batch_processor.adjust_batch_size_on_oom()
 
-                # 清理显存
+                # Clear GPU memory
                 if torch.cuda.is_available():
                     torch.cuda.empty_cache()
                 gc.collect()
 
-                # 如果批处理大小已经是最小值，仍然OOM，则跳过这些样本
+                # If still OOM at the minimum batch size, skip these samples
                 if batch_processor.get_batch_size() == batch_processor.min_batch_size:
                     print(
                         f"即使使用最小批处理大小 {batch_processor.min_batch_size} 仍然OOM，跳过 {len(batch_samples)} 个样本")
                     pbar.update(len(batch_samples))
                     i += len(batch_samples)
 
-                # 不增加i，重新尝试当前批次（使用更小的批处理大小）
+                # Do not increment i here; retry current batch with a smaller batch size
             else:
                 print(f"处理批次时出现非OOM错误: {e}")
-                # 跳过当前批次
+                # Skip current batch
                 pbar.update(len(batch_samples))
                 i += len(batch_samples)
 
         except Exception as e:
             print(f"处理批次时出错: {e}")
-            # 跳过当前批次
+            # Skip current batch
             pbar.update(len(batch_samples))
             i += len(batch_samples)
 
@@ -455,24 +455,24 @@ def process_single_dataset(model: Any, tokenizer: Any, data_type: str, data_list
 def save_results_jsonl(results: List[Dict], data_type: str, prefix_length: int, max_new_tokens: int,
                        model_name: str, model_type: str, output_dir: str, num_samples: int):
     """
-    保存生成结果为jsonl格式
+    Save generation results in JSONL format
 
     Args:
-        results: 生成结果列表
-        data_type: 数据集类型
-        prefix_length: 前缀长度
-        model_name: 模型名称
-        model_type: 模型类型
-        output_dir: 输出目录
-        num_samples: 样本数量
+        results: List of generation results
+        data_type: Dataset type
+        prefix_length: Prefix length
+        model_name: Model name
+        model_type: Model type
+        output_dir: Output directory
+        num_samples: Number of samples
     """
     os.makedirs(output_dir, exist_ok=True)
 
-    # 生成文件名：dataset_prefix{length}_{model_name}_{model_type}_{num_samples}samples.jsonl
+    # Generate filename: dataset_prefix{length}_new{max_new_tokens}_{model_name}_{model_type}_{num_samples}_samples.jsonl
     filename = f"{data_type}_prefix{prefix_length}_new{max_new_tokens}_{model_name}_{model_type}_{num_samples}_samples.jsonl"
     filepath = os.path.join(output_dir, filename)
 
-    # 保存结果
+    # Save results
     with open(filepath, 'w', encoding='utf-8') as f:
         for result in results:
             f.write(json.dumps(result, ensure_ascii=False) + '\n')
@@ -483,7 +483,7 @@ def save_results_jsonl(results: List[Dict], data_type: str, prefix_length: int, 
 def main():
     parser = argparse.ArgumentParser(description='使用base和sft模型生成测试内容')
 
-    # 模型相关参数
+    # Model-related arguments
     parser.add_argument('--model_dir', type=str,
                         default='/root/autodl-tmp/ift_memorization/model_cache',
                         help='模型根目录')
@@ -495,7 +495,7 @@ def main():
                         choices=['base', 'sft'],
                         help='模型类型：base或sft')
 
-    # 数据相关参数
+    # Data-related arguments
     parser.add_argument('--data_dir', type=str,
                         default='/root/autodl-tmp/ift_memorization/data/pretraining_test_data/mem_test',
                         help='测试数据目录')
@@ -506,7 +506,7 @@ def main():
     parser.add_argument('--max_samples', type=int, default=10000,
                         help='每种数据类型的最大样本数，None表示全部')
 
-    # 生成相关参数
+    # Generation-related arguments
     parser.add_argument('--prefix_lengths', type=int, nargs='+', default=[64],
                         help='前缀长度列表')
     parser.add_argument('--max_new_tokens', type=int, nargs='+', default=[8, 16],
@@ -516,7 +516,7 @@ def main():
     parser.add_argument('--top_k_save', type=int, default=10,
                         help='保存top-k的概率信息')
 
-    # 输出相关参数
+    # Output-related arguments
     parser.add_argument('--output_dir', type=str,
                         default='/root/autodl-tmp/ift_memorization/results/exp1_generation_',
                         help='输出目录')
@@ -527,7 +527,7 @@ def main():
     args = parser.parse_args()
 
 
-    # 构建完整模型路径
+    # Build the full model path
     if args.model_type == 'sft':
         model_path = os.path.join(args.model_dir, f"{args.model_name}-SFT")
     else:
@@ -541,20 +541,20 @@ def main():
     print(f"前缀长度: {args.prefix_lengths}")
     print(f"最大样本数: {args.max_samples}")
 
-    # 加载模型
+    # Load model
     model, tokenizer = load_model_and_tokenizer(model_path, args.device)
 
-    # 加载测试数据
+    # Load test data
     data_dict = load_test_data(args.data_dir, args.datasets, args.max_samples)
 
     if not any(data_dict.values()):
         print("错误: 未加载到任何有效数据")
         return
 
-    # 提取模型规模信息
-    model_scale = args.model_name.split('-')[-1]  # 提取规模信息 (如 "1B")
+    # Extract model scale info
+    model_scale = args.model_name.split('-')[-1]  # Extract scale info (e.g., "1B")
 
-    # 先遍历前缀长度，后遍历数据集
+    # Iterate prefix lengths first, then datasets
     start_time = time.time()
     total_processed = 0
 
@@ -568,7 +568,7 @@ def main():
 
             print(f"  处理数据集: {data_type} ({len(data_list)} 个样本)")
 
-            # 处理单个数据集
+            # Process one dataset
             for max_tokens in args.max_new_tokens:
                 print(f"  生成tokens数目: {max_tokens}")
                 output_dir = args.output_dir + str(max_tokens)
@@ -577,7 +577,7 @@ def main():
                     prefix_length, max_tokens, args.top_k_save
                 )
 
-                # 保存结果
+                # Save results
                 save_results_jsonl(
                     results, data_type, prefix_length, max_tokens,
                     model_scale, args.model_type, output_dir, len(results)

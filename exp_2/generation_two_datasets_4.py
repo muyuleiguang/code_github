@@ -1,14 +1,14 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-英语俚语和中文唐诗记忆（背诵）测试代码 - 修改版
-支持batch处理和解决JSON序列化问题
-测试base和sft模型在两种数据集上的记忆情况
-输入是诗词的上一句/俚语的前n-1个词，输出是下一句/最后一个词
+English idioms and Chinese Tang poetry memorization (recitation) test code - modified version
+Supports batch processing and resolves JSON serialization issues
+Tests memorization behavior of base and sft models on two datasets
+Input is the previous line of a poem / the first n-1 words of an idiom; output is the next line / the final word
 
-修改内容：
-1. 分为两类样本数：num_samples用于测试记忆情况，num_samples_rep_save用于保存表征
-2. 生成两个文件：一个不包含表征和logits，一个包含表征和logits
+Modifications:
+1. Two sample-count categories: num_samples for memorization testing, num_samples_rep_save for saving representations
+2. Generate two files: one without representations/logits, one with representations/logits
 """
 
 import os
@@ -26,7 +26,7 @@ import random
 
 def convert_numpy_to_python(obj):
     """
-    递归地将numpy数组转换为Python原生类型，以便JSON序列化
+    Recursively convert numpy arrays to native Python types for JSON serialization
     """
     if isinstance(obj, np.ndarray):
         return obj.tolist()
@@ -46,14 +46,14 @@ def convert_numpy_to_python(obj):
 
 def load_dataset(file_path, dataset_type):
     """
-    加载数据集
+    Load a dataset
 
     Args:
-        file_path: 数据集文件路径
-        dataset_type: 数据集类型 ('idiom' 或 'poems')
+        file_path: dataset file path
+        dataset_type: dataset type ('idiom' or 'poems')
 
     Returns:
-        list: 加载的数据列表
+        list: loaded data list
     """
     data = []
     try:
@@ -64,7 +64,7 @@ def load_dataset(file_path, dataset_type):
                     data.append(json.loads(line))
     except FileNotFoundError:
         print(f"警告: 文件 {file_path} 不存在，使用默认示例数据")
-        # 使用默认示例数据
+        # Use default sample data
         if dataset_type == 'idiom':
             data = [
                 {"idiom": "break the ice"},
@@ -88,20 +88,20 @@ def load_dataset(file_path, dataset_type):
 
 def prepare_idiom_prompt(idioms, target_idiom, few_shots):
     """
-    准备英语俚语的few-shot prompt
+    Prepare the few-shot prompt for English idioms
 
     Args:
-        idioms: 俚语数据列表
-        target_idiom: 目标俚语
-        few_shots: few-shot示例数量
+        idioms: idiom data list
+        target_idiom: target idiom
+        few_shots: number of few-shot examples
 
     Returns:
         tuple: (input_text, target_output, input_words, target_word)
     """
-    # 使用后few_shots个作为示例（不包括目标俚语）
+    # Use the last few_shots examples as demonstrations (excluding the target idiom)
     examples = idioms[-few_shots:]
 
-    # 构建few-shot prompt
+    # Build the few-shot prompt
     prompt_parts = ["Complete the following English idioms:\n\n"]
 
     for example in examples:
@@ -111,13 +111,13 @@ def prepare_idiom_prompt(idioms, target_idiom, few_shots):
             output_part = idiom_words[-1]
             prompt_parts.append(f"Input: {input_part}\nOutput: {output_part}\n\n")
 
-    # 添加目标俚语的输入部分
+    # Add the target idiom input part
     target_words = target_idiom['idiom'].split()
     if len(target_words) > 1:
         target_input = ' '.join(target_words[:-1])
         target_output = target_words[-1]
     else:
-        # 如果俚语只有一个词，则使用前几个字符作为输入
+        # If the idiom has only one word, use the first few characters as input
         target_input = target_idiom['idiom'][:-1]
         target_output = target_idiom['idiom'][-1]
 
@@ -130,20 +130,20 @@ def prepare_idiom_prompt(idioms, target_idiom, few_shots):
 
 def prepare_poem_prompt(poems, target_poem, few_shots):
     """
-    准备中文唐诗的few-shot prompt
+    Prepare the few-shot prompt for Chinese Tang poetry
 
     Args:
-        poems: 诗词数据列表
-        target_poem: 目标诗词
-        few_shots: few-shot示例数量
+        poems: poem data list
+        target_poem: target poem
+        few_shots: number of few-shot examples
 
     Returns:
         tuple: (input_text, target_output, input_line, target_line)
     """
-    # 使用后few_shots个作为示例（不包括目标诗词）
+    # Use the last few_shots examples as demonstrations (excluding the target poem)
     examples = poems[-few_shots:]
 
-    # 构建few-shot prompt
+    # Build the few-shot prompt
     prompt_parts = ["根据上句诗，补全下句七言绝句，用中文回复：\n\n"]
 
     for example in examples:
@@ -151,7 +151,7 @@ def prepare_poem_prompt(poems, target_poem, few_shots):
         output_line = example['fourth_row']
         prompt_parts.append(f"上句：{input_line}\n下句：{output_line}\n\n")
 
-    # 添加目标诗词的输入部分
+    # Add the target poem input part
     target_input = target_poem['third_row']
     target_output = target_poem['fourth_row']
 
@@ -164,18 +164,18 @@ def prepare_poem_prompt(poems, target_poem, few_shots):
 
 def prepare_batch_inputs(input_texts, tokenizer, device, max_length=512):
     """
-    准备batch输入
+    Prepare batch inputs
 
     Args:
-        input_texts: 输入文本列表
-        tokenizer: 分词器
-        device: 设备
-        max_length: 最大长度
+        input_texts: list of input texts
+        tokenizer: tokenizer
+        device: device
+        max_length: max sequence length
 
     Returns:
-        dict: batch输入
+        dict: batch inputs
     """
-    # 批量编码
+    # Batch encoding
     inputs = tokenizer(
         input_texts,
         return_tensors="pt",
@@ -184,7 +184,7 @@ def prepare_batch_inputs(input_texts, tokenizer, device, max_length=512):
         max_length=max_length
     )
 
-    # 移动到设备
+    # Move to device
     inputs = {k: v.to(device) for k, v in inputs.items()}
 
     return inputs
@@ -192,28 +192,28 @@ def prepare_batch_inputs(input_texts, tokenizer, device, max_length=512):
 
 def generate_batch_simple(model, tokenizer, input_texts, max_new_tokens, device):
     """
-    批量生成文本（不保存表征，节省内存）
+    Generate text in batches (without saving representations to reduce memory)
 
     Args:
-        model: 语言模型
-        tokenizer: 分词器
-        input_texts: 输入文本列表
-        max_new_tokens: 最大生成token数
-        device: 设备
+        model: language model
+        tokenizer: tokenizer
+        input_texts: list of input texts
+        max_new_tokens: maximum number of generated tokens
+        device: device
 
     Returns:
-        list: 每个样本的结果列表，只包含生成文本
+        list: per-sample result list containing only generated text
     """
     batch_size = len(input_texts)
 
-    # 准备batch输入
+    # Prepare batch inputs
     inputs = prepare_batch_inputs(input_texts, tokenizer, device)
     input_lengths = inputs['attention_mask'].sum(dim=1).cpu().numpy()
 
-    # 存储所有样本的结果
+    # Store results for all samples
     batch_results = []
 
-    # 初始化每个样本的结果存储
+    # Initialize per-sample result storage
     for i in range(batch_size):
         batch_results.append({
             'generated_text': '',
@@ -226,32 +226,32 @@ def generate_batch_simple(model, tokenizer, input_texts, max_new_tokens, device)
 
     with torch.no_grad():
         for step in range(max_new_tokens):
-            # 前向传播
+            # Forward pass
             outputs = model(
                 input_ids=current_input_ids,
                 attention_mask=current_attention_mask,
                 return_dict=True
             )
 
-            # 获取每个样本最后一个位置的logits
+            # Get logits at the last position for each sample
             next_token_logits = outputs.logits[:, -1, :]
 
-            # 贪婪选择下一个token
+            # Greedy selection of next token
             next_token_ids = torch.argmax(next_token_logits, dim=-1, keepdim=True)
 
-            # 为每个样本保存token信息
+            # Save token info for each sample
             for i in range(batch_size):
                 token_id = next_token_ids[i, 0].item()
                 batch_results[i]['generated_tokens'].append(token_id)
 
-            # 更新输入序列
+            # Update input sequence
             current_input_ids = torch.cat([current_input_ids, next_token_ids], dim=1)
 
-            # 更新attention mask
+            # Update attention mask
             new_attention = torch.ones(batch_size, 1, device=device)
             current_attention_mask = torch.cat([current_attention_mask, new_attention], dim=1)
 
-    # 解码生成的文本
+    # Decode generated text
     for i, sample_result in enumerate(batch_results):
         generated_tokens = sample_result['generated_tokens']
         sample_result['generated_text'] = tokenizer.decode(generated_tokens, skip_special_tokens=True)
@@ -261,28 +261,28 @@ def generate_batch_simple(model, tokenizer, input_texts, max_new_tokens, device)
 
 def generate_batch_with_representations(model, tokenizer, input_texts, max_new_tokens, device):
     """
-    批量生成文本并提取隐藏层表征
+    Generate text in batches and extract hidden-state representations
 
     Args:
-        model: 语言模型
-        tokenizer: 分词器
-        input_texts: 输入文本列表
-        max_new_tokens: 最大生成token数
-        device: 设备
+        model: language model
+        tokenizer: tokenizer
+        input_texts: list of input texts
+        max_new_tokens: maximum number of generated tokens
+        device: device
 
     Returns:
-        list: 每个样本的结果列表，包含生成文本、隐藏状态等
+        list: per-sample result list including generated text, hidden states, etc.
     """
     batch_size = len(input_texts)
 
-    # 准备batch输入
+    # Prepare batch inputs
     inputs = prepare_batch_inputs(input_texts, tokenizer, device)
     input_lengths = inputs['attention_mask'].sum(dim=1).cpu().numpy()
 
-    # 存储所有样本的结果
+    # Store results for all samples
     batch_results = []
 
-    # 初始化每个样本的结果存储
+    # Initialize per-sample result storage
     for i in range(batch_size):
         batch_results.append({
             'generated_text': '',
@@ -298,7 +298,7 @@ def generate_batch_with_representations(model, tokenizer, input_texts, max_new_t
 
     with torch.no_grad():
         for step in range(max_new_tokens):
-            # 前向传播
+            # Forward pass
             outputs = model(
                 input_ids=current_input_ids,
                 attention_mask=current_attention_mask,
@@ -306,24 +306,24 @@ def generate_batch_with_representations(model, tokenizer, input_texts, max_new_t
                 return_dict=True
             )
 
-            # 获取每个样本最后一个位置的logits
+            # Get logits at the last position for each sample
             next_token_logits = outputs.logits[:, -1, :]  # [batch_size, vocab_size]
             next_token_probs = torch.softmax(next_token_logits, dim=-1)
 
-            # 贪婪选择下一个token
+            # Greedy selection of next token
             next_token_ids = torch.argmax(next_token_logits, dim=-1, keepdim=True)  # [batch_size, 1]
 
-            # 为每个样本保存信息
+            # Save information for each sample
             for i in range(batch_size):
                 sample_result = batch_results[i]
 
-                # 保存token信息
+                # Save token info
                 token_id = next_token_ids[i, 0].item()
                 sample_result['generated_tokens'].append(token_id)
                 sample_result['token_logits'].append(next_token_logits[i].cpu().numpy())
                 sample_result['token_probs'].append(next_token_probs[i].cpu().numpy())
 
-                # 保存所有层的隐藏状态（最后一个位置）
+                # Save hidden states for all layers (last position)
                 step_hidden_states = []
                 for layer_idx, layer_hidden in enumerate(outputs.hidden_states):
                     # layer_hidden: [batch_size, seq_len, hidden_size]
@@ -331,14 +331,14 @@ def generate_batch_with_representations(model, tokenizer, input_texts, max_new_t
                     step_hidden_states.append(last_token_hidden)
                 sample_result['all_hidden_states'].append(step_hidden_states)
 
-            # 更新输入序列
+            # Update input sequence
             current_input_ids = torch.cat([current_input_ids, next_token_ids], dim=1)
 
-            # 更新attention mask
+            # Update attention mask
             new_attention = torch.ones(batch_size, 1, device=device)
             current_attention_mask = torch.cat([current_attention_mask, new_attention], dim=1)
 
-    # 解码生成的文本
+    # Decode generated text
     for i, sample_result in enumerate(batch_results):
         generated_tokens = sample_result['generated_tokens']
         sample_result['generated_text'] = tokenizer.decode(generated_tokens, skip_special_tokens=True)
@@ -348,27 +348,27 @@ def generate_batch_with_representations(model, tokenizer, input_texts, max_new_t
 
 def process_dataset_batch(model, tokenizer, dataset, dataset_type, args, model_name, model_type):
     """
-    批量处理数据集，分为两个阶段：普通测试和表征保存
+    Batch-process a dataset in two stages: normal testing and representation saving
 
     Args:
-        model: 语言模型
-        tokenizer: 分词器
-        dataset: 数据集
-        dataset_type: 数据集类型 ('idiom' 或 'poems')
-        args: 命令行参数
-        model_name: 当前模型名称
-        model_type: 当前模型类型
+        model: language model
+        tokenizer: tokenizer
+        dataset: dataset
+        dataset_type: dataset type ('idiom' or 'poems')
+        args: command-line args
+        model_name: current model name
+        model_type: current model type
 
     Returns:
-        tuple: (普通结果列表, 带表征结果列表)
+        tuple: (normal result list, representation result list)
     """
-    # 验证参数
+    # Validate parameters
     if args.num_samples_rep_save > args.num_samples:
         print(f"警告: num_samples_rep_save ({args.num_samples_rep_save}) 大于 num_samples ({args.num_samples})")
         print(f"将 num_samples_rep_save 设置为 {args.num_samples}")
         args.num_samples_rep_save = args.num_samples
 
-    # 取样本
+    # Sample selection
     test_samples = dataset[:args.num_samples]
     rep_samples = dataset[:args.num_samples_rep_save]
 
@@ -376,7 +376,7 @@ def process_dataset_batch(model, tokenizer, dataset, dataset_type, args, model_n
     print(f"普通测试样本数: {len(test_samples)}")
     print(f"表征保存样本数: {len(rep_samples)}")
 
-    # 阶段1: 普通测试（不保存表征）
+    # Stage 1: normal testing (no representations saved)
     print(f"\n阶段1: 普通测试 {dataset_type} 数据集...")
     normal_results = []
 
@@ -385,7 +385,7 @@ def process_dataset_batch(model, tokenizer, dataset, dataset_type, args, model_n
         batch_samples = test_samples[batch_start:batch_end]
 
         try:
-            # 准备batch的输入
+            # Prepare batch inputs
             batch_input_texts = []
             batch_metadata = []
 
@@ -410,17 +410,17 @@ def process_dataset_batch(model, tokenizer, dataset, dataset_type, args, model_n
                     'target_output': target_output
                 })
 
-            # 批量生成（简单模式）
+            # Batch generation (simple mode)
             batch_results = generate_batch_simple(
                 model, tokenizer, batch_input_texts, args.max_new_tokens, args.device
             )
 
-            # 整合结果
+            # Merge results
             for metadata, generation_result in zip(batch_metadata, batch_results):
-                # 清理生成的文本
+                # Clean generated text
                 generated_text = generation_result['generated_text'].strip().split('\n')[0]
 
-                # 创建完整的结果记录
+                # Create complete result record
                 result = {
                     'sample_id': metadata['sample_id'],
                     'dataset_type': dataset_type,
@@ -443,7 +443,7 @@ def process_dataset_batch(model, tokenizer, dataset, dataset_type, args, model_n
             print(f"处理普通测试batch {batch_start}-{batch_end} 时出错: {e}")
             continue
 
-    # 阶段2: 表征保存测试
+    # Stage 2: representation-saving testing
     print(f"\n阶段2: 表征保存 {dataset_type} 数据集...")
     rep_results = []
 
@@ -452,7 +452,7 @@ def process_dataset_batch(model, tokenizer, dataset, dataset_type, args, model_n
         batch_samples = rep_samples[batch_start:batch_end]
 
         try:
-            # 准备batch的输入
+            # Prepare batch inputs
             batch_input_texts = []
             batch_metadata = []
 
@@ -477,17 +477,17 @@ def process_dataset_batch(model, tokenizer, dataset, dataset_type, args, model_n
                     'target_output': target_output
                 })
 
-            # 批量生成（带表征）
+            # Batch generation (with representations)
             batch_results = generate_batch_with_representations(
                 model, tokenizer, batch_input_texts, args.max_new_tokens, args.device
             )
 
-            # 整合结果
+            # Merge results
             for metadata, generation_result in zip(batch_metadata, batch_results):
-                # 清理生成的文本
+                # Clean generated text
                 generated_text = generation_result['generated_text'].strip().split('\n')[0]
 
-                # 创建完整的结果记录
+                # Create complete result record
                 result = {
                     'sample_id': metadata['sample_id'],
                     'dataset_type': dataset_type,
@@ -504,7 +504,7 @@ def process_dataset_batch(model, tokenizer, dataset, dataset_type, args, model_n
                     'num_generated_tokens': len(generation_result['generated_tokens']),
                     'input_length': int(generation_result['input_length']),
                     'has_representations': True,
-                    # 转换numpy数组为Python列表以支持JSON序列化
+                    # Convert numpy arrays to Python lists to support JSON serialization
                     'all_hidden_states': convert_numpy_to_python(generation_result['all_hidden_states']),
                     'token_logits': convert_numpy_to_python(generation_result['token_logits']),
                     'token_probs': convert_numpy_to_python(generation_result['token_probs'])
@@ -521,18 +521,18 @@ def process_dataset_batch(model, tokenizer, dataset, dataset_type, args, model_n
 
 def save_results(results, args, model_name, model_type, result_type="normal"):
     """
-    保存结果到文件
+    Save results to file
 
     Args:
-        results: 结果列表
-        args: 命令行参数
-        model_name: 模型名称
-        model_type: 模型类型
-        result_type: 结果类型 ("normal" 或 "representations")
+        results: result list
+        args: command-line args
+        model_name: model name
+        model_type: model type
+        result_type: result type ("normal" or "representations")
     """
     os.makedirs(args.save_dir, exist_ok=True)
 
-    # 生成文件名
+    # Generate filename
     model_name_clean = model_name.split('-')[-1]
     if result_type == "representations":
         filename = f"idiom_{model_name_clean}_{model_type}_with_representations.json"
@@ -541,7 +541,7 @@ def save_results(results, args, model_name, model_type, result_type="normal"):
 
     save_path = os.path.join(args.save_dir, filename)
 
-    # 准备保存数据
+    # Prepare data to save
     save_data = {
         'args': vars(args),
         'model_name': model_name,
@@ -552,7 +552,7 @@ def save_results(results, args, model_name, model_type, result_type="normal"):
         'dataset_types': list(set([r['dataset_type'] for r in results]))
     }
 
-    # 保存结果
+    # Save results
     with open(save_path, 'w', encoding='utf-8') as f:
         json.dump(save_data, f, ensure_ascii=False, indent=2)
 
@@ -560,10 +560,10 @@ def save_results(results, args, model_name, model_type, result_type="normal"):
 
 
 def setup_args():
-    """设置命令行参数"""
+    """Set up command-line arguments"""
     parser = argparse.ArgumentParser(description='测试模型在俚语和诗词上的记忆能力')
 
-    # 数据集相关参数
+    # Dataset-related arguments
     parser.add_argument('--data_dir', type=str,
                         default='/root/autodl-tmp/ift_memorization/data/test_data_2',
                         help='数据集目录路径')
@@ -572,7 +572,7 @@ def setup_args():
     parser.add_argument('--poems_file', type=str, default='poems.jsonl',
                         help='中文唐诗数据集文件名')
 
-    # 模型相关参数
+    # Model-related arguments
     parser.add_argument('--model_dir', type=str,
                         default='/root/autodl-tmp/ift_memorization/model_cache',
                         help='模型根目录')
@@ -588,7 +588,7 @@ def setup_args():
     parser.add_argument('--device', type=str, default='cuda',
                         help='运行设备')
 
-    # 生成参数
+    # Generation arguments
     parser.add_argument('--max_new_tokens', type=int, default=7,
                         help='最大生成token数（俚语和诗词都是7）')
     parser.add_argument('--batch_size', type=int, default=4,
@@ -600,7 +600,7 @@ def setup_args():
     parser.add_argument('--few_shots', type=int, default=5,
                         help='few-shot prompt中的示例数量（取后few_shots个）')
 
-    # 输出参数
+    # Output arguments
     parser.add_argument('--save_dir', type=str,
                         default='/root/autodl-tmp/ift_memorization/results/exp2_memorization_poem',
                         help='结果保存目录')
@@ -610,7 +610,7 @@ def setup_args():
     return parser.parse_args()
 
 def main():
-    """主函数"""
+    """Main function"""
     args = setup_args()
 
     print(f"开始测试模型: {args.model_names}")
@@ -621,32 +621,32 @@ def main():
     print(f"表征保存样本数: {args.num_samples_rep_save}")
     print(f"最大生成token数: {args.max_new_tokens}")
 
-    # 设置随机种子
+    # Set random seeds
     random.seed(42)
     torch.manual_seed(42)
 
-    # 加载数据集
+    # Load datasets
     idiom_path = os.path.join(args.data_dir, args.idiom_file)
     poems_path = os.path.join(args.data_dir, args.poems_file)
 
     idiom_data = load_dataset(idiom_path, 'idiom')
     poems_data = load_dataset(poems_path, 'poems')
 
-    # 迭代所有模型名称和类型的组合
+    # Iterate over combinations of model names and types
     for model_name in args.model_names:
         for model_type in args.model_type:
             print(f"\n{'=' * 60}")
             print(f"处理模型: {model_name} ({model_type})")
             print(f"{'=' * 60}")
 
-            # 构造实际的模型路径
+            # Construct the actual model path
             if model_type == 'sft':
                 actual_model_name = os.path.join(args.model_dir, f"{model_name}-SFT")
             else:
                 actual_model_name = os.path.join(args.model_dir, model_name)
             print(f"实际模型路径: {actual_model_name}")
 
-            # 加载模型和分词器
+            # Load model and tokenizer
             print("加载模型和分词器...")
             try:
                 tokenizer = AutoTokenizer.from_pretrained(actual_model_name)
@@ -669,7 +669,7 @@ def main():
             all_normal_results = []
             all_rep_results = []
 
-            # 处理俚语数据集
+            # Process idiom dataset
             if idiom_data:
                 idiom_normal, idiom_rep = process_dataset_batch(
                     model, tokenizer, idiom_data, 'idiom', args, model_name, model_type
@@ -677,7 +677,7 @@ def main():
                 all_normal_results.extend(idiom_normal)
                 all_rep_results.extend(idiom_rep)
 
-            # 处理诗词数据集
+            # Process poem dataset
             if poems_data:
                 poems_normal, poems_rep = process_dataset_batch(
                     model, tokenizer, poems_data, 'poems', args, model_name, model_type
@@ -685,7 +685,7 @@ def main():
                 all_normal_results.extend(poems_normal)
                 all_rep_results.extend(poems_rep)
 
-            # 保存结果
+            # Save results
             if args.save_generations:
                 if all_normal_results:
                     save_results(all_normal_results, args, model_name, model_type, "normal")
@@ -700,7 +700,7 @@ def main():
             print(f"俚语表征样本: {len([r for r in all_rep_results if r['dataset_type'] == 'idiom'])}")
             print(f"诗词表征样本: {len([r for r in all_rep_results if r['dataset_type'] == 'poems'])}")
 
-            # 清理GPU内存
+            # Clear GPU memory
             del model, tokenizer
             if torch.cuda.is_available():
                 torch.cuda.empty_cache()

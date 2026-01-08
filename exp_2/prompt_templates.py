@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-数据集Few-shot提示模板
-包含各数据集的标准few-shot示例，支持可配置的few-shot数量
+Few-shot prompt templates for datasets
+Includes standard few-shot examples for each dataset, supporting a configurable number of shots
 """
 from typing import List, Dict
 
-# MMLU Few-shot 示例 (最后16个作为prompt pool)
+# MMLU few-shot examples (last 16 used as prompt pool)
 MMLU_PROMPTS = [
     {
         "subject": "abstract_algebra",
@@ -111,7 +111,7 @@ MMLU_PROMPTS = [
     }
 ]
 
-# GSM8K Few-shot 示例 (来自openai/gsm8k数据集，最后16个作为prompt pool)
+# GSM8K few-shot examples (from openai/gsm8k dataset; last 16 used as prompt pool)
 # GSM8K_PROMPTS = [
 #     {
 #         "question": "There are 15 trees in the grove. Grove workers will plant trees in the grove today. After they are done, there will be 21 trees. How many trees did the grove workers plant today?",
@@ -248,7 +248,7 @@ GSM8K_PROMPTS = [
 ]
 
 
-# MATH Few-shot 示例 (最后16个作为prompt pool)
+# MATH few-shot examples (last 16 used as prompt pool)
 MATH_PROMPTS = [
     {
         "problem": "Find the domain of the expression $\\frac{\\sqrt{x-2}}{\\sqrt{5-x}}$.",
@@ -316,7 +316,7 @@ MATH_PROMPTS = [
     }
 ]
 
-# PopQA Few-shot 示例 (最后16个作为prompt pool)
+# PopQA few-shot examples (last 16 used as prompt pool)
 POPQA_PROMPTS = [
     {
         "question": "Who wrote the novel '1984'?",
@@ -384,7 +384,7 @@ POPQA_PROMPTS = [
     }
 ]
 
-# AlpacaEval Few-shot 示例 (最后16个作为prompt pool)
+# AlpacaEval few-shot examples (last 16 used as prompt pool)
 ALPACA_EVAL_PROMPTS = [
     {
         "instruction": "Give three tips for staying healthy.",
@@ -452,7 +452,7 @@ ALPACA_EVAL_PROMPTS = [
     }
 ]
 
-# IFEval Few-shot 示例 (最后16个作为prompt pool)
+# IFEval few-shot examples (last 16 used as prompt pool)
 IFEVAL_PROMPTS = [
     {
         "prompt": "Write a 200-word story about a lost cat. The story must contain exactly 3 paragraphs.",
@@ -523,14 +523,14 @@ IFEVAL_PROMPTS = [
 
 def get_few_shot_prompts(dataset_name: str, num_shots: int = 5) -> List[Dict]:
     """
-    获取指定数据集的few-shot提示示例
+    Get few-shot prompt examples for a specified dataset
 
-    参数:
-        dataset_name: 数据集名称 ('mmlu', 'gsm8k', 'math', 'popqa', 'alpaca_eval', 'ifeval')
-        num_shots: few-shot示例数量，默认5个
+    Parameters:
+        dataset_name: Dataset name ('mmlu', 'gsm8k', 'math', 'popqa', 'alpaca_eval', 'ifeval')
+        num_shots: Number of few-shot examples (default: 5)
 
-    返回:
-        包含few-shot示例的列表
+    Returns:
+        A list containing few-shot examples
     """
     prompt_pools = {
         'mmlu': MMLU_PROMPTS,
@@ -545,21 +545,21 @@ def get_few_shot_prompts(dataset_name: str, num_shots: int = 5) -> List[Dict]:
         return []
 
     pool = prompt_pools[dataset_name]
-    # 取前num_shots个作为few-shot示例
+    # Take the first num_shots examples as the few-shot examples
     return pool[:min(num_shots, len(pool))]
 
 
 def format_few_shot_string(dataset_name: str, few_shot_examples: List[Dict], test_sample: Dict = None) -> str:
     """
-    将few-shot示例格式化为字符串提示
+    Format few-shot examples into a string prompt
 
-    参数:
-        dataset_name: 数据集名称
-        few_shot_examples: few-shot示例列表
-        test_sample: 测试样本（可选，用于某些数据集的特殊格式化）
+    Parameters:
+        dataset_name: Dataset name
+        few_shot_examples: List of few-shot examples
+        test_sample: Test sample (optional, used for special formatting in some datasets)
 
-    返回:
-        格式化的few-shot提示字符串
+    Returns:
+        Formatted few-shot prompt string
     """
     if dataset_name == 'mmlu':
         return format_mmlu_few_shot(few_shot_examples, test_sample)
@@ -578,11 +578,11 @@ def format_few_shot_string(dataset_name: str, few_shot_examples: List[Dict], tes
 
 
 def format_mmlu_few_shot(examples: List[Dict], test_sample: Dict = None) -> str:
-    """格式化MMLU few-shot提示"""
+    """Format MMLU few-shot prompt"""
     if not examples:
         return ""
 
-    # 获取学科名称（从测试样本或第一个示例）
+    # Get the subject name (from the test sample or the first example)
     subject = test_sample.get('subject', examples[0].get('subject', 'general knowledge')) if test_sample else examples[
         0].get('subject', 'general knowledge')
 
@@ -600,7 +600,7 @@ def format_mmlu_few_shot(examples: List[Dict], test_sample: Dict = None) -> str:
 
 
 def format_gsm8k_few_shot(examples: List[Dict]) -> str:
-    """格式化GSM8K few-shot提示"""
+    """Format GSM8K few-shot prompt"""
     if not examples:
         return ""
 
@@ -612,7 +612,7 @@ def format_gsm8k_few_shot(examples: List[Dict]) -> str:
 
 
 def format_math_few_shot(examples: List[Dict]) -> str:
-    """格式化MATH few-shot提示"""
+    """Format MATH few-shot prompt"""
     if not examples:
         return ""
 
@@ -624,7 +624,7 @@ def format_math_few_shot(examples: List[Dict]) -> str:
 
 
 def format_popqa_few_shot(examples: List[Dict]) -> str:
-    """格式化PopQA few-shot提示"""
+    """Format PopQA few-shot prompt"""
     if not examples:
         return ""
 
@@ -636,7 +636,7 @@ def format_popqa_few_shot(examples: List[Dict]) -> str:
 
 
 def format_alpaca_eval_few_shot(examples: List[Dict]) -> str:
-    """格式化AlpacaEval few-shot提示"""
+    """Format AlpacaEval few-shot prompt"""
     if not examples:
         return ""
 
@@ -648,7 +648,7 @@ def format_alpaca_eval_few_shot(examples: List[Dict]) -> str:
 
 
 def format_ifeval_few_shot(examples: List[Dict]) -> str:
-    """格式化IFEval few-shot提示"""
+    """Format IFEval few-shot prompt"""
     if not examples:
         return ""
 

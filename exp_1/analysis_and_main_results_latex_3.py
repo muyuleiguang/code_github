@@ -8,7 +8,7 @@ import glob
 import pandas as pd
 from typing import Dict, List
 import warnings
-# 导入记忆评估指标
+# Import memorization evaluation metrics
 from memorization_metrics import MemorizationMetrics
 
 warnings.filterwarnings('ignore')
@@ -16,28 +16,28 @@ warnings.filterwarnings('ignore')
 
 def sort_model_scales(model_scales):
     """
-    按照模型规模数值大小排序，如 1B < 7B < 13B
+    Sort model scales by their numeric size, e.g., 1B < 7B < 13B
 
     Args:
-        model_scales: 模型规模列表
+        model_scales: List of model scales
 
     Returns:
-        sorted_scales: 排序后的模型规模列表
+        sorted_scales: Sorted list of model scales
     """
 
     def extract_scale_value(scale_str):
-        """提取模型规模的数值部分用于排序"""
+        """Extract the numeric part of the model scale string for sorting"""
         try:
-            # 移除末尾的单位（B、M等）
+            # Remove the unit suffix (B, M, etc.)
             if scale_str.endswith('B'):
                 return float(scale_str[:-1])
             elif scale_str.endswith('M'):
-                return float(scale_str[:-1]) / 1000  # 转换为B单位
+                return float(scale_str[:-1]) / 1000  # Convert to B units
             else:
-                # 如果没有单位，直接当作数字处理
+                # If no unit, treat it as a number directly
                 return float(scale_str)
         except:
-            # 如果解析失败，返回一个大数值，排在最后
+            # If parsing fails, return a large value so it is placed at the end
             return float('inf')
 
     return sorted(model_scales, key=extract_scale_value)
@@ -50,22 +50,24 @@ def load_generation_results(results_dir: str,
                             max_new_tokens: List[int],
                             max_samples: int = None) -> Dict[str, Dict]:
     """
-    加载多个数据集和模型规模的生成结果文件
+    Load generation result files across multiple datasets and model scales
 
-    文件命名格式: {dataset}_prefix{prefix_length}_new{max_new_tokens}_{model_scale}_{model_type}_10000_samples.jsonl
-    文件位置: results_dir/exp1_generation_{max_new_tokens}/
+    File naming format:
+        {dataset}_prefix{prefix_length}_new{max_new_tokens}_{model_scale}_{model_type}_{max_samples}_samples.jsonl
+    File location:
+        results_dir/exp1_generation_{max_new_tokens}/
 
     Args:
-        results_dir: 结果根目录 (例如: /root/autodl-tmp/ift_memorization/results)
-        model_scales: 模型规模列表 (如 ["1B", "7B", "13B", "32B"])
-        datasets: 数据集列表 (如 ['stackexchange', 'dclm-privacy', 'wiki-fact'])
-        prefix_lengths: 前缀长度列表 (如 [16, 32, 64])
-        max_new_tokens: 最大新token数列表 (如 [8, 16])
-        max_samples: 每个条件下的最大样本数
+        results_dir: Root results directory (e.g., /root/autodl-tmp/ift_memorization/results)
+        model_scales: List of model scales (e.g., ["1B", "7B", "13B", "32B"])
+        datasets: List of datasets (e.g., ['stackexchange', 'dclm-privacy', 'wiki-fact'])
+        prefix_lengths: List of prefix lengths (e.g., [16, 32, 64])
+        max_new_tokens: List of max new token values (e.g., [8, 16])
+        max_samples: Maximum number of samples per condition
 
     Returns:
-        results_dict: 按数据集、模型规模、模型类型、前缀长度和max_new_tokens组织的结果
-        格式: {dataset: {model_scale: {model_type: {prefix_length: {max_new_tokens: [samples]}}}}}
+        results_dict: Results organized by dataset, model scale, model type, prefix length, and max_new_tokens
+        Format: {dataset: {model_scale: {model_type: {prefix_length: {max_new_tokens: [samples]}}}}}
     """
     results_dict = {}
 
@@ -76,24 +78,24 @@ def load_generation_results(results_dir: str,
     print(f"最大新token数: {max_new_tokens}")
     print("-" * 80)
 
-    # 遍历所有参数组合
+    # Iterate over all parameter combinations
     for dataset in datasets:
         for model_scale in model_scales:
             for model_type in ['base', 'sft']:
                 for prefix_length in prefix_lengths:
                     for max_new_token in max_new_tokens:
-                        # 构建文件路径
-                        # 文件在 exp1_generation_{max_new_token} 文件夹下
+                        # Build file path
+                        # Files are under the exp1_generation_{max_new_token} folder
                         folder_name = f"exp1_generation_{max_new_token}"
                         file_name = f"{dataset}_prefix{prefix_length}_new{max_new_token}_{model_scale}_{model_type}_{max_samples}_samples.jsonl"
                         file_path = os.path.join(results_dir, folder_name, file_name)
 
-                        # 检查文件是否存在
+                        # Check if file exists
                         if not os.path.exists(file_path):
                             print(f"✗ 文件不存在: {file_name}")
                             continue
 
-                        # 读取文件
+                        # Read file
                         try:
                             samples = []
                             with open(file_path, 'r', encoding='utf-8') as f:
@@ -102,11 +104,11 @@ def load_generation_results(results_dir: str,
                                         sample = json.loads(line)
                                         samples.append(sample)
 
-                            # 应用样本数限制
+                            # Apply sample limit
                             if max_samples and len(samples) > max_samples:
                                 samples = samples[:max_samples]
 
-                            # 组织数据结构
+                            # Organize data structure
                             if dataset not in results_dict:
                                 results_dict[dataset] = {}
                             if model_scale not in results_dict[dataset]:
@@ -131,15 +133,15 @@ def load_generation_results(results_dir: str,
 
 def calculate_memorization_metrics_with_evaluator(results_dict: Dict[str, Dict]) -> pd.DataFrame:
     """
-    使用MemorizationMetrics计算记忆指标
+    Compute memorization metrics using MemorizationMetrics
 
     Args:
-        results_dict: 生成结果字典
+        results_dict: Generation results dictionary
 
     Returns:
-        metrics_df: 记忆指标的DataFrame
+        metrics_df: DataFrame of memorization metrics
     """
-    # 初始化评估器
+    # Initialize evaluator
     evaluator = MemorizationMetrics()
     metrics_data = []
 
@@ -158,11 +160,11 @@ def calculate_memorization_metrics_with_evaluator(results_dict: Dict[str, Dict])
                         print(
                             f"计算 {dataset}-{model_scale}-{model_type}-prefix{prefix_length}-maxtokens{max_new_tokens} 的记忆指标...")
 
-                        # 使用新的统一接口计算所有指标
+                        # Use the new unified interface to compute all metrics
                         try:
                             metrics_results = evaluator.compute_all_metrics_from_data(samples)
 
-                            # 提取各种指标数据
+                            # Extract metrics into a single record
                             metrics_entry = {
                                 'dataset': dataset,
                                 'model_type': model_type,
@@ -172,11 +174,11 @@ def calculate_memorization_metrics_with_evaluator(results_dict: Dict[str, Dict])
                                 'sample_count': len(samples),
                             }
 
-                            # 第一种：精确匹配
+                            # 1) Exact match
                             if 'exact_match' in metrics_results:
                                 metrics_entry['exact_match_rate'] = metrics_results['exact_match']['exact_match_rate']
 
-                            # 第二种：ROUGE/BLEU指标
+                            # 2) ROUGE/BLEU
                             if 'rouge_bleu' in metrics_results:
                                 rouge_bleu = metrics_results['rouge_bleu']
                                 metrics_entry['rouge_1_f'] = rouge_bleu.get('rouge_1_f', 0.0)
@@ -186,19 +188,19 @@ def calculate_memorization_metrics_with_evaluator(results_dict: Dict[str, Dict])
                                 metrics_entry['bleu_2'] = rouge_bleu.get('bleu_2', 0.0)
                                 metrics_entry['bleu_4'] = rouge_bleu.get('bleu_4', 0.0)
 
-                            # 第三种：编辑距离
+                            # 3) Edit distance
                             if 'edit_distance' in metrics_results:
                                 edit_dist = metrics_results['edit_distance']
                                 metrics_entry['token_edit_distance'] = edit_dist.get('token_edit_distance', 0.0)
                                 metrics_entry['normalized_token_distance'] = edit_dist.get('normalized_token_distance',
                                                                                            0.0)
 
-                            # 第四种：语义相似度
+                            # 4) Semantic similarity
                             if 'semantic' in metrics_results:
                                 semantic = metrics_results['semantic']
                                 metrics_entry['semantic_similarity'] = semantic.get('cosine_similarity', 0.0)
 
-                            # 第五种：likelihood相关指标
+                            # 5) Likelihood-related metrics
                             if 'likelihood' in metrics_results:
                                 likelihood = metrics_results['likelihood']
                                 metrics_entry['target_token_probability'] = likelihood.get('target_token_probability',
@@ -223,27 +225,27 @@ def calculate_memorization_metrics_with_evaluator(results_dict: Dict[str, Dict])
 def generate_latex_tables(metrics_df: pd.DataFrame, output_dir: str, prefix_lengths: List[int],
                           max_new_tokens: List[int]):
     """
-    生成latex表格，按照正确的结构：
-    列头：数据集名称 + Generation Length
-    行头：模型规模+类型 + Prefix Length
+    Generate LaTeX tables with the correct structure:
+    Column headers: Dataset name + Generation Length
+    Row headers: Model scale + type + Prefix Length
 
     Args:
-        metrics_df: 包含指标的DataFrame
-        output_dir: 输出目录
-        prefix_lengths: 前缀长度列表
-        max_new_tokens: 最大新token数列表
+        metrics_df: DataFrame containing computed metrics
+        output_dir: Output directory
+        prefix_lengths: List of prefix lengths
+        max_new_tokens: List of max new token values
     """
-    # 创建输出目录
+    # Create output directory
     os.makedirs(output_dir, exist_ok=True)
 
-    # 数据集映射（显示用）
+    # Dataset mapping (for display)
     dataset_mapping = {
         'stackexchange': 'STACKEXCHANGE',
         'dclm-privacy': 'DCLM-PRIVACY',
         'wiki-fact': 'WIKI-FACT'
     }
 
-    # 定义要生成表格的指标
+    # Metrics to generate tables for
     metrics_to_generate = [
         ('exact_match_rate', 'Exact Match Rate'),
         ('rouge_1_f', 'ROUGE-1 F-score'),
@@ -261,25 +263,25 @@ def generate_latex_tables(metrics_df: pd.DataFrame, output_dir: str, prefix_leng
         ('target_in_top5_rate', 'Target in Top-5 Rate')
     ]
 
-    # 收集所有latex表格
+    # Collect all LaTeX tables
     all_latex_tables = []
 
-    # 获取唯一的数据集和模型
+    # Get unique datasets and models
     datasets = sorted(metrics_df['dataset'].unique())
     model_scales = sort_model_scales(metrics_df['model_scale'].unique())
 
-    # 为每个指标生成一个大表格
+    # Generate one large table per metric
     for metric_col, metric_name in metrics_to_generate:
         if metric_col not in metrics_df.columns:
             continue
 
         print(f"生成 {metric_name} 的大表格...")
 
-        # 构建表格数据 - 按照正确的行列结构
+        # Build table data following the correct row/column layout
         table_data = []
         row_headers = []
 
-        # 行结构：模型规模+类型 × prefix_length
+        # Row structure: model scale + type × prefix_length
         for model_scale in model_scales:
             for model_type in ['base', 'sft']:
                 model_label = f"{model_scale}" if model_type == 'base' else f"{model_scale}-sft"
@@ -287,10 +289,10 @@ def generate_latex_tables(metrics_df: pd.DataFrame, output_dir: str, prefix_leng
                 for prefix_length in prefix_lengths:
                     row_data = []
 
-                    # 列结构：数据集 × generation_length
+                    # Column structure: dataset × generation_length
                     for dataset in datasets:
                         for max_new_token in max_new_tokens:
-                            # 查找对应的值
+                            # Look up the corresponding value
                             mask = (metrics_df['dataset'] == dataset) & \
                                    (metrics_df['model_scale'] == model_scale) & \
                                    (metrics_df['model_type'] == model_type) & \
@@ -302,7 +304,7 @@ def generate_latex_tables(metrics_df: pd.DataFrame, output_dir: str, prefix_leng
                                 if pd.isna(value) or value == float('inf') or value == float('-inf'):
                                     row_data.append('N/A')
                                 else:
-                                    # 根据指标类型决定格式
+                                    # Format based on metric type
                                     if metric_col in ['target_token_rank']:
                                         row_data.append(f"{value:.1f}")
                                     else:
@@ -313,7 +315,7 @@ def generate_latex_tables(metrics_df: pd.DataFrame, output_dir: str, prefix_leng
                     table_data.append(row_data)
                     row_headers.append((model_label, prefix_length))
 
-        # 生成latex表格
+        # Generate LaTeX table
         latex_table = generate_correct_latex_table(
             table_data,
             row_headers,
@@ -326,7 +328,7 @@ def generate_latex_tables(metrics_df: pd.DataFrame, output_dir: str, prefix_leng
         all_latex_tables.append(latex_table)
         print(f"{metric_name} 表格已生成")
 
-    # 保存所有表格到一个文件
+    # Save all tables to a single file
     prefix_str = '_'.join(map(str, prefix_lengths))
     tokens_str = '_'.join(map(str, max_new_tokens))
     output_file = os.path.join(output_dir,
@@ -346,7 +348,7 @@ def generate_latex_tables(metrics_df: pd.DataFrame, output_dir: str, prefix_leng
     print(f"\n所有latex表格已保存到: {output_file}")
     print(f"总共生成了 {len(all_latex_tables)} 个表格")
 
-    # 也生成一个总结的CSV文件
+    # Also generate a summary CSV file
     summary_file = os.path.join(output_dir, 'memorization_metrics_summary.csv')
     metrics_df.to_csv(summary_file, index=False)
     print(f"指标总结CSV已保存到: {summary_file}")
@@ -359,14 +361,14 @@ def generate_correct_latex_table(table_data: List[List[str]],
                                  dataset_mapping: Dict[str, str],
                                  table_title: str) -> str:
     """
-    生成正确结构的latex表格
-    列头：数据集名称 + Generation Length
-    行头：模型规模+类型 + Prefix Length
+    Generate a LaTeX table with the correct structure
+    Column headers: Dataset name + Generation Length
+    Row headers: Model scale + type + Prefix Length
     """
-    # 计算总列数
+    # Compute total number of columns
     total_cols = len(datasets) * len(max_new_tokens)
 
-    # 开始表格
+    # Begin table
     latex_lines = [
         "\\begin{table}[h]",
         "\\centering",
@@ -375,7 +377,7 @@ def generate_correct_latex_table(table_data: List[List[str]],
         "\\toprule"
     ]
 
-    # 第一层表头（数据集名称）
+    # Top-level header (dataset names)
     top_header = "Model & Prefix L"
     for dataset in datasets:
         dataset_display = dataset_mapping.get(dataset, dataset)
@@ -387,7 +389,7 @@ def generate_correct_latex_table(table_data: List[List[str]],
     top_header += " \\\\"
     latex_lines.append(top_header)
 
-    # 第二层表头（Generation Length）
+    # Second-level header (Generation Length)
     sub_header = " & "
     for dataset in datasets:
         for max_new_token in max_new_tokens:
@@ -396,22 +398,22 @@ def generate_correct_latex_table(table_data: List[List[str]],
     latex_lines.append(sub_header)
     latex_lines.append("\\midrule")
 
-    # 表格数据 - 带有行头分组
+    # Table rows with grouped row headers
     current_model = None
     for i, ((model_label, prefix_length), row_data) in enumerate(zip(row_headers, table_data)):
         if model_label != current_model:
-            # 新的模型组
+            # New model group
             current_model = model_label
             row_str = f"{model_label} & {prefix_length}"
         else:
-            # 同一模型的不同prefix
+            # Different prefix within the same model
             row_str = f" & {prefix_length}"
 
-        # 添加数据
+        # Add data cells
         row_str += " & " + " & ".join(row_data) + " \\\\"
         latex_lines.append(row_str)
 
-    # 结束表格
+    # End table
     latex_lines.extend([
         "\\bottomrule",
         "\\end{tabular}",
@@ -458,7 +460,7 @@ def main():
     print(f"输出目录: {args.output_dir}")
     print("=" * 80)
 
-    # 加载生成结果
+    # Load generation results
     results_dict = load_generation_results(
         args.results_dir,
         args.model_scales,
@@ -472,7 +474,7 @@ def main():
         print("\n错误: 未能加载任何生成结果")
         return
 
-    # 计算记忆指标
+    # Compute memorization metrics
     print("\n" + "=" * 80)
     print("开始计算记忆指标")
     print("=" * 80)
@@ -487,7 +489,7 @@ def main():
     print(metrics_df[['dataset', 'model_scale', 'model_type', 'prefix_length', 'max_new_tokens',
                       'exact_match_rate', 'rouge_1_f', 'bleu_1']].head(10))
 
-    # 生成并保存latex表格
+    # Generate and save LaTeX tables
     print("\n" + "=" * 80)
     print("开始生成LaTeX表格")
     print("=" * 80)

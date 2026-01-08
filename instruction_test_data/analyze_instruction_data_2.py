@@ -1,6 +1,6 @@
 """
-分析指令微调数据的特征（更新版）
-包含更新的指令词列表
+Analyze characteristics of instruction fine-tuning data (updated version)
+Includes an updated instruction-verb list
 """
 import json
 import os
@@ -14,7 +14,7 @@ import seaborn as sns
 from pathlib import Path
 import pandas as pd
 
-# 设置中文字体
+# Set Chinese font
 plt.rcParams['font.sans-serif'] = ['SimHei', 'DejaVu Sans']
 plt.rcParams['axes.unicode_minus'] = False
 
@@ -22,16 +22,16 @@ plt.rcParams['axes.unicode_minus'] = False
 class InstructionAnalyzer:
     def __init__(self, instruction_verbs: Set[str] = None):
         """
-        初始化分析器
+        Initialize the analyzer
 
         Args:
-            instruction_verbs: 指令动词集合，如果为None则使用默认集合
+            instruction_verbs: A set of instruction verbs; if None, use the default set
         """
         self.analysis_functions = []
 
-        # 设置指令动词集合
+        # Set the instruction verb set
         if instruction_verbs is None:
-            # 默认的指令动词（合并用户提供的列表）
+            # Default instruction verbs (merged from the user-provided lists)
             instruct1 = [
                 "translate", "explain", "summarize", "retrieve",
                 "revise", 'generate', 'describe', 'classify', 'create',
@@ -47,7 +47,7 @@ class InstructionAnalyzer:
                 "output", "predict", "detect"
             ]
 
-            # 合并并去重（转为小写）
+            # Merge and deduplicate (lowercased)
             self.instruction_verbs = set(word.lower() for word in instruct1 + instruct2)
         else:
             self.instruction_verbs = set(word.lower() for word in instruction_verbs)
@@ -56,52 +56,52 @@ class InstructionAnalyzer:
 
     def add_analysis(self, func, name: str):
         """
-        添加分析函数
+        Add an analysis function
 
         Args:
-            func: 分析函数
-            name: 分析名称
+            func: Analysis function
+            name: Analysis name
         """
         self.analysis_functions.append((func, name))
 
     def count_words(self, text: str) -> int:
         """
-        快速词数统计，替代tokenizer
+        Fast word count as a tokenizer substitute
 
         Args:
-            text: 输入文本
+            text: Input text
 
         Returns:
-            词数
+            Word count
         """
-        # 简单的词数统计，按空格分割
+        # Simple word count by splitting on whitespace
         return len(text.split())
 
     def count_characters(self, text: str) -> int:
         """
-        字符数统计
+        Character count
 
         Args:
-            text: 输入文本
+            text: Input text
 
         Returns:
-            字符数
+            Character count
         """
         return len(text.strip())
 
     def analyze_length_distribution(self, data: List[Dict]) -> Dict:
         """
-        分析长度分布
+        Analyze length distribution
 
-        目的：
-        - 了解指令和回答的典型长度
-        - 为后续筛选预训练数据提供参考
+        Purpose:
+        - Understand typical lengths of instructions and responses
+        - Provide reference for later pretraining-data filtering
 
         Args:
-            data: 数据列表
+            data: List of data items
 
         Returns:
-            长度分布统计字典
+            A dict of length-distribution statistics
         """
         instruction_word_lengths = []
         response_word_lengths = []
@@ -112,9 +112,9 @@ class InstructionAnalyzer:
         total_char_lengths = []
 
         for item in data:
-            # 处理不同的数据格式
+            # Handle different data formats
             if 'messages' in item:
-                # 处理messages格式
+                # Handle messages format
                 instruction_text = ""
                 response_text = ""
                 for msg in item['messages']:
@@ -123,15 +123,15 @@ class InstructionAnalyzer:
                     elif msg['role'] == 'assistant':
                         response_text += msg['content'] + " "
             else:
-                # 处理直接格式
+                # Handle direct format
                 instruction_text = item.get("instruction", item.get("instruction_text", ""))
                 response_text = item.get("response", item.get("response_text", ""))
 
-            # 词数统计
+            # Word counting
             inst_words = self.count_words(instruction_text)
             resp_words = self.count_words(response_text)
 
-            # 字符数统计
+            # Character counting
             inst_chars = self.count_characters(instruction_text)
             resp_chars = self.count_characters(response_text)
 
@@ -191,16 +191,16 @@ class InstructionAnalyzer:
 
     def extract_text_from_item(self, item: Dict) -> Tuple[str, str]:
         """
-        从数据项中提取指令和回答文本
+        Extract instruction and response text from a data item
 
         Args:
-            item: 数据项字典
+            item: Data item dict
 
         Returns:
-            (instruction, response) 元组
+            (instruction, response) tuple
         """
         if 'messages' in item:
-            # 处理messages格式
+            # Handle messages format
             instruction_text = ""
             response_text = ""
             for msg in item['messages']:
@@ -209,7 +209,7 @@ class InstructionAnalyzer:
                 elif msg['role'] == 'assistant':
                     response_text += msg['content'] + " "
         else:
-            # 处理直接格式
+            # Handle direct format
             instruction_text = item.get("instruction", item.get("instruction_text", ""))
             response_text = item.get("response", item.get("response_text", ""))
 
@@ -217,32 +217,32 @@ class InstructionAnalyzer:
 
     def analyze_instruction_patterns(self, data: List[Dict]) -> Dict:
         """
-        分析指令模式
+        Analyze instruction patterns
 
         Args:
-            data: 数据列表
+            data: List of data items
 
         Returns:
-            指令模式统计字典
+            A dict of instruction-pattern statistics
         """
-        # 指令开头词统计
+        # Count instruction starting words
         start_words = Counter()
 
-        # 指令类型模式
+        # Instruction-type patterns
         patterns = {
-            "question": 0,  # 疑问句
-            "command": 0,  # 命令句
-            "completion": 0,  # 补全任务
-            "generation": 0,  # 生成任务
-            "explanation": 0,  # 解释任务
-            "translation": 0,  # 翻译任务
-            "summarization": 0,  # 总结任务
-            "analysis": 0,  # 分析任务
-            "coding": 0,  # 编程任务
-            "math": 0,  # 数学任务
+            "question": 0,  # Interrogative
+            "command": 0,  # Imperative
+            "completion": 0,  # Completion task
+            "generation": 0,  # Generation task
+            "explanation": 0,  # Explanation task
+            "translation": 0,  # Translation task
+            "summarization": 0,  # Summarization task
+            "analysis": 0,  # Analysis task
+            "coding": 0,  # Coding task
+            "math": 0,  # Math task
         }
 
-        # 常见指令动词（使用类初始化时设置的指令动词集合）
+        # Common instruction verbs (use the verb set configured in the class)
         instruction_verbs_counter = Counter()
 
         for item in data:
@@ -252,12 +252,12 @@ class InstructionAnalyzer:
             if not instruction:
                 continue
 
-            # 统计开头词
+            # Count starting words
             words = instruction.split()
             if words:
                 start_words[words[0]] += 1
 
-            # 识别指令类型
+            # Identify instruction types
             if "?" in instruction or any(q in instruction for q in ["what", "why", "how", "when", "where", "who"]):
                 patterns["question"] += 1
 
@@ -285,12 +285,12 @@ class InstructionAnalyzer:
             if any(math in instruction for math in ["calculate", "solve", "equation", "formula", "math"]):
                 patterns["math"] += 1
 
-            # 提取动词（使用self.instruction_verbs）
+            # Extract verbs (using self.instruction_verbs)
             for word in words:
                 if word in self.instruction_verbs:
                     instruction_verbs_counter[word] += 1
 
-        # 转换为百分比
+        # Convert to percentages
         total = len(data)
         patterns_pct = {k: (v / total) * 100 for k, v in patterns.items()}
 
@@ -302,27 +302,27 @@ class InstructionAnalyzer:
 
     def analyze_response_patterns(self, data: List[Dict]) -> Dict:
         """
-        分析回答模式
+        Analyze response patterns
 
         Args:
-            data: 数据列表
+            data: List of data items
 
         Returns:
-            回答模式统计字典
+            A dict of response-pattern statistics
         """
         response_formats = {
-            "numbered_list": 0,  # 编号列表
-            "bullet_points": 0,  # 项目符号
-            "step_by_step": 0,  # 分步骤
-            "code_block": 0,  # 代码块
-            "single_paragraph": 0,  # 单段落
-            "multi_paragraph": 0,  # 多段落
-            "here_is": 0,  # "Here is"开头
-            "conversational": 0,  # 对话式
-            "structured": 0,  # 结构化回答
+            "numbered_list": 0,  # Numbered list
+            "bullet_points": 0,  # Bullet points
+            "step_by_step": 0,  # Step-by-step
+            "code_block": 0,  # Code block
+            "single_paragraph": 0,  # Single paragraph
+            "multi_paragraph": 0,  # Multiple paragraphs
+            "here_is": 0,  # Starts with "Here is"
+            "conversational": 0,  # Conversational
+            "structured": 0,  # Structured response
         }
 
-        # 回答开头短语
+        # Response starting phrases
         start_phrases = Counter()
 
         for item in data:
@@ -332,7 +332,7 @@ class InstructionAnalyzer:
 
             response_lower = response.lower()
 
-            # 检查格式
+            # Check formats
             if re.search(r'^\d+\.', response, re.MULTILINE):
                 response_formats["numbered_list"] += 1
 
@@ -355,20 +355,20 @@ class InstructionAnalyzer:
             if re.search(r'(first|second|third|finally|in conclusion|therefore)', response_lower):
                 response_formats["structured"] += 1
 
-            # 统计段落数
+            # Count paragraphs
             paragraphs = [p for p in response.split('\n\n') if p.strip()]
             if len(paragraphs) == 1:
                 response_formats["single_paragraph"] += 1
             elif len(paragraphs) > 1:
                 response_formats["multi_paragraph"] += 1
 
-            # 提取开头短语（前5个词）
+            # Extract starting phrases (first 5 words)
             words = response.split()[:5]
             if len(words) >= 2:
                 phrase = " ".join(words[:2]).lower()
                 start_phrases[phrase] += 1
 
-        # 转换为百分比
+        # Convert to percentages
         total = len(data)
         formats_pct = {k: (v / total) * 100 for k, v in response_formats.items()}
 
@@ -379,15 +379,15 @@ class InstructionAnalyzer:
 
     def analyze_topic_distribution(self, data: List[Dict]) -> Dict:
         """
-        分析主题分布
+        Analyze topic distribution
 
         Args:
-            data: 数据列表
+            data: List of data items
 
         Returns:
-            主题分布字典（百分比形式）
+            Topic distribution dict (in percentages)
         """
-        # 更详细的主题关键词匹配
+        # More detailed topic keyword matching
         topics = {
             "编程开发": ["code", "function", "program", "python", "javascript", "algorithm", "software", "debug", "api"],
             "数学计算": ["calculate", "solve", "equation", "number", "mathematical", "formula", "statistics"],
@@ -411,7 +411,7 @@ class InstructionAnalyzer:
                 if any(keyword in text for keyword in keywords):
                     topic_counts[topic] += 1
 
-        # 转换为百分比
+        # Convert to percentages
         total = len(data)
         topic_pct = {k: (v / total) * 100 for k, v in topic_counts.items()}
 
@@ -419,23 +419,23 @@ class InstructionAnalyzer:
 
     def create_visualizations(self, results: Dict, output_dir: str):
         """
-        创建可视化图表
+        Create visualization plots
 
         Args:
-            results: 分析结果字典
-            output_dir: 输出目录路径
+            results: Analysis results dict
+            output_dir: Output directory path
         """
-        # 创建输出目录
+        # Create output directory
         os.makedirs(output_dir, exist_ok=True)
 
-        # 设置图表样式
+        # Set plot style
         plt.style.use('default')
         fig_size = (12, 8)
 
-        # 1. 长度分布直方图
+        # 1. Length distribution histograms
         fig, ((ax1, ax2), (ax3, ax4)) = plt.subplots(2, 2, figsize=(15, 12))
 
-        # 指令词数分布
+        # Instruction word-count distribution
         inst_words = results['length_distribution']['raw_data']['instruction_words']
         ax1.hist(inst_words, bins=50, alpha=0.7, color='skyblue', edgecolor='black')
         ax1.set_title('指令长度分布 (词数)', fontsize=14, fontweight='bold')
@@ -444,7 +444,7 @@ class InstructionAnalyzer:
         ax1.axvline(np.mean(inst_words), color='red', linestyle='--', label=f'平均值: {np.mean(inst_words):.1f}')
         ax1.legend()
 
-        # 回答词数分布
+        # Response word-count distribution
         resp_words = results['length_distribution']['raw_data']['response_words']
         ax2.hist(resp_words, bins=50, alpha=0.7, color='lightgreen', edgecolor='black')
         ax2.set_title('回答长度分布 (词数)', fontsize=14, fontweight='bold')
@@ -453,7 +453,7 @@ class InstructionAnalyzer:
         ax2.axvline(np.mean(resp_words), color='red', linestyle='--', label=f'平均值: {np.mean(resp_words):.1f}')
         ax2.legend()
 
-        # 指令字符数分布
+        # Instruction character-count distribution
         inst_chars = results['length_distribution']['raw_data']['instruction_chars']
         ax3.hist(inst_chars, bins=50, alpha=0.7, color='orange', edgecolor='black')
         ax3.set_title('指令长度分布 (字符数)', fontsize=14, fontweight='bold')
@@ -462,7 +462,7 @@ class InstructionAnalyzer:
         ax3.axvline(np.mean(inst_chars), color='red', linestyle='--', label=f'平均值: {np.mean(inst_chars):.1f}')
         ax3.legend()
 
-        # 回答字符数分布
+        # Response character-count distribution
         resp_chars = results['length_distribution']['raw_data']['response_chars']
         ax4.hist(resp_chars, bins=50, alpha=0.7, color='pink', edgecolor='black')
         ax4.set_title('回答长度分布 (字符数)', fontsize=14, fontweight='bold')
@@ -475,9 +475,9 @@ class InstructionAnalyzer:
         plt.savefig(os.path.join(output_dir, 'length_distribution.png'), dpi=300, bbox_inches='tight')
         plt.close()
 
-        # 2. 指令类型分布饼图
+        # 2. Instruction-type distribution pie chart
         patterns = results['instruction_patterns']['patterns']
-        patterns_filtered = {k: v for k, v in patterns.items() if v > 1}  # 只显示大于1%的
+        patterns_filtered = {k: v for k, v in patterns.items() if v > 1}  # Only show >1%
 
         fig, ax = plt.subplots(figsize=fig_size)
         colors = plt.cm.Set3(np.linspace(0, 1, len(patterns_filtered)))
@@ -491,7 +491,7 @@ class InstructionAnalyzer:
         plt.savefig(os.path.join(output_dir, 'instruction_patterns.png'), dpi=300, bbox_inches='tight')
         plt.close()
 
-        # 3. 回答格式分布条形图
+        # 3. Response-format distribution bar chart
         formats = results['response_patterns']['formats']
         formats_filtered = {k: v for k, v in formats.items() if v > 1}
 
@@ -501,7 +501,7 @@ class InstructionAnalyzer:
         ax.set_title('回答格式分布', fontsize=16, fontweight='bold')
         ax.set_xlabel('百分比 (%)')
 
-        # 在条形图上添加数值标签
+        # Add value labels on the bars
         for bar in bars:
             width = bar.get_width()
             ax.text(width, bar.get_y() + bar.get_height()/2,
@@ -511,7 +511,7 @@ class InstructionAnalyzer:
         plt.savefig(os.path.join(output_dir, 'response_formats.png'), dpi=300, bbox_inches='tight')
         plt.close()
 
-        # 4. 主题分布条形图
+        # 4. Topic distribution bar chart
         topics = results['topic_distribution']
         topics_filtered = {k: v for k, v in topics.items() if v > 0.5}
 
@@ -523,7 +523,7 @@ class InstructionAnalyzer:
         ax.set_xlabel('主题类别')
         plt.xticks(rotation=45, ha='right')
 
-        # 在条形图上添加数值标签
+        # Add value labels on the bars
         for bar in bars:
             height = bar.get_height()
             ax.text(bar.get_x() + bar.get_width()/2., height,
@@ -533,7 +533,7 @@ class InstructionAnalyzer:
         plt.savefig(os.path.join(output_dir, 'topic_distribution.png'), dpi=300, bbox_inches='tight')
         plt.close()
 
-        # 5. 常用指令动词词云风格条形图
+        # 5. Bar chart styled like a word-cloud for common instruction verbs
         verbs = results['instruction_patterns']['instruction_verbs']
         top_verbs = dict(list(verbs.items())[:15])
 
@@ -556,23 +556,23 @@ class InstructionAnalyzer:
 
     def run_analysis(self, data: List[Dict]) -> Dict:
         """
-        运行所有分析
+        Run all analyses
 
         Args:
-            data: 数据列表
+            data: List of data items
 
         Returns:
-            分析结果字典
+            Analysis results dict
         """
         results = {}
 
-        # 添加所有分析函数
+        # Add all analysis functions
         self.add_analysis(self.analyze_length_distribution, "length_distribution")
         self.add_analysis(self.analyze_instruction_patterns, "instruction_patterns")
         self.add_analysis(self.analyze_response_patterns, "response_patterns")
         self.add_analysis(self.analyze_topic_distribution, "topic_distribution")
 
-        # 执行分析
+        # Execute analyses
         for func, name in self.analysis_functions:
             print(f"执行分析: {name}")
             results[name] = func(data)
@@ -582,7 +582,7 @@ class InstructionAnalyzer:
 
 def main():
     """
-    主函数：解析参数并执行分析
+    Main function: parse arguments and run analysis
     """
     parser = argparse.ArgumentParser(description="分析指令微调数据")
     parser.add_argument("--input_file", type=str,
@@ -597,13 +597,13 @@ def main():
 
     args = parser.parse_args()
 
-    # 检查输入文件是否存在
+    # Check whether the input file exists
     if not os.path.exists(args.input_file):
         print(f"错误: 输入文件不存在: {args.input_file}")
         print("请检查文件路径或者使用 --input_file 指定正确的路径")
         return
 
-    # 加载数据
+    # Load data
     print(f"加载数据: {args.input_file}")
     data = []
     try:
@@ -626,26 +626,26 @@ def main():
         print("错误: 没有有效数据可以分析")
         return
 
-    # 创建分析器（使用更新的指令动词列表）
+    # Create analyzer (using the updated instruction-verb list)
     analyzer = InstructionAnalyzer()
 
-    # 执行分析
+    # Run analyses
     results = analyzer.run_analysis(data)
 
-    # 创建输出目录
+    # Create output directory
     os.makedirs(args.output_dir, exist_ok=True)
 
-    # 保存结果
+    # Save results
     output_path = os.path.join(args.output_dir, "instruction_analysis.json")
     with open(output_path, "w", encoding="utf-8") as f:
         json.dump(results, f, indent=2, ensure_ascii=False, default=str)
     print(f"分析结果保存到: {output_path}")
 
-    # 创建可视化
+    # Create visualizations
     print("创建可视化图表...")
     analyzer.create_visualizations(results, args.output_dir)
 
-    # 打印详细摘要
+    # Print detailed summary
     print("\n" + "="*60)
     print("📊 指令微调数据集分析报告")
     print("="*60)

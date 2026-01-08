@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-生成独立的归一化对比图
-每个指标一个独立的PDF文件
+Generate separate normalized comparison plots
+One independent PDF file per metric
 """
 
 import json
@@ -10,7 +10,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.ticker as mticker
 
-# 设置绘图风格 - 按用户要求
+# Plot style settings - as requested by the user
 plt.rcParams['font.family'] = 'DejaVu Sans'
 plt.rcParams['axes.unicode_minus'] = False
 plt.rcParams['font.size'] = 20
@@ -18,16 +18,16 @@ plt.rcParams['lines.linewidth'] = 6.0
 plt.rcParams['lines.markersize'] = 15
 plt.rcParams['titleweight'] = 'bold'
 plt.rcParams['labelweight'] = 'bold'
-# --- 字体粗细 (Font Weight) ---
- #   'axes.titleweight': 'bold',  # 标题加粗
-  #  'axes.labelweight': 'bold',  # 标签加粗
+# --- Font Weight ---
+ #   'axes.titleweight': 'bold',  # Bold title
+  #  'axes.labelweight': 'bold',  # Bold labels
 
-# 配色方案
-COLOR_1B = '#D62728'  # 红色
-COLOR_7B = '#1F77B4'  # 蓝色
+# Color scheme
+COLOR_1B = '#D62728'  # Red
+COLOR_7B = '#1F77B4'  # Blue
 
 def load_data(json_file):
-    """加载JSON数据"""
+    """Load JSON data"""
     with open(json_file, 'r', encoding='utf-8') as f:
         return json.load(f)
 
@@ -35,27 +35,27 @@ def load_data(json_file):
 def plot_single_metric_normalized(data_1b, data_7b, metric_key, 
                                    ylabel, title, output_file, dpi=300):
     """
-    绘制单个指标的归一化对比图
+    Plot a normalized comparison chart for a single metric
     
-    参数:
-        data_1b: 1B模型数据
-        data_7b: 7B模型数据
-        metric_key: 指标键名
-        ylabel: Y轴标签
-        title: 图标题
-        output_file: 输出文件路径
-        dpi: 分辨率
+    Args:
+        data_1b: 1B model data
+        data_7b: 7B model data
+        metric_key: Metric key name
+        ylabel: Y-axis label
+        title: Plot title
+        output_file: Output file path
+        dpi: Resolution
     """
-    # 创建图表 - 使用用户指定的figsize
+    # Create figure - use the user-specified figsize
     fig, ax = plt.subplots(figsize=(8, 6))
     
-    # 获取数据
+    # Get data
     layers_1b = np.arange(len(data_1b[metric_key]))
     layers_7b = np.arange(len(data_7b[metric_key]))
     values_1b = np.array(data_1b[metric_key])
     values_7b = np.array(data_7b[metric_key])
     
-    # 归一化到[0, 1]
+    # Normalize to [0, 1]
     min_1b, max_1b = values_1b.min(), values_1b.max()
     min_7b, max_7b = values_7b.min(), values_7b.max()
     
@@ -69,7 +69,7 @@ def plot_single_metric_normalized(data_1b, data_7b, metric_key,
     else:
         norm_7b = np.zeros_like(values_7b)
     
-    # 绘制曲线
+    # Plot curves
     ax.plot(layers_1b, norm_1b,
            marker='o',
            color=COLOR_1B,
@@ -82,24 +82,24 @@ def plot_single_metric_normalized(data_1b, data_7b, metric_key,
            label='7B',
            alpha=0.8)
     
-    # 设置标签 - 使用用户指定的labelpad
+    # Set labels - use the user-specified labelpad
     ax.set_xlabel('Layer Index', labelpad=2)
     ax.set_ylabel(ylabel)
     
-    # 设置标题 - 不添加(Normalized)后缀，保持原标题
+    # Set title - do not append "(Normalized)", keep the original title
     ax.set_title(title)
     
-    # 设置Y轴范围和格式
+    # Set Y-axis range and format
     ax.set_ylim(-0.05, 1.05)
     ax.yaxis.set_major_formatter(mticker.FormatStrFormatter('%.3f'))
     
-    # 图例 - 去掉range信息
+    # Legend - remove range info
     ax.legend(loc='best', frameon=True, shadow=True)
     
-    # 网格 - 不设置背景色
+    # Grid - do not set background color
     ax.grid(True, alpha=0.3, linestyle='--')
     
-    # 保存
+    # Save
     plt.tight_layout()
     plt.savefig(output_file, dpi=dpi, bbox_inches='tight')
     print(f"已保存: {output_file}")
@@ -107,13 +107,13 @@ def plot_single_metric_normalized(data_1b, data_7b, metric_key,
 
 
 def main():
-    # 加载数据
+    # Load data
     data = load_data('/mnt/user-data/uploads/1763344449209_representation_analysis_results.json')
     
     data_1b = data['1B']['idiom']['metrics']
     data_7b = data['7B']['idiom']['metrics']
     
-    # 定义要绘制的指标 - 保持与原代码一致的ylabel和title
+    # Define metrics to plot - keep ylabel and title consistent with the original code
     metrics = [
         {
             'key': 'cka',
@@ -141,7 +141,7 @@ def main():
         }
     ]
     
-    # 生成每个指标的图表
+    # Generate charts for each metric
     print("正在生成归一化对比图...")
     for metric in metrics:
         plot_single_metric_normalized(

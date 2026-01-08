@@ -15,7 +15,7 @@ import json
 import argparse
 import numpy as np
 import matplotlib.pyplot as plt
-import matplotlib.ticker as mticker  # <--- 在这里添加这一行
+import matplotlib.ticker as mticker  # <--- Add this line here
 import seaborn as sns
 from scipy.stats import entropy
 from scipy.spatial.distance import cosine
@@ -35,32 +35,32 @@ plt.rcParams['font.family'] = 'DejaVu Sans'
 plt.rcParams['axes.unicode_minus'] = False
 sns.set_style("whitegrid")
 
-# --- [新添加] 全局统一绘图样式 ---
-# (你可以在这里调整你想要的默认大小)
+# --- [Newly Added] Global unified plotting style ---
+# (You can adjust the default size here if you want)
 plt.rcParams.update({
-    # --- 字体大小 (Font Sizes) ---
-    'font.size': 14,  # 基础字体大小 (用于常规文本)
-    'axes.titlesize': 18,  # 图表标题 (Title)
-    'axes.labelsize': 16,  # X 和 Y 轴标签 (Label)
-    'xtick.labelsize': 14,  # X 轴刻度 (Tick labels)
-    'ytick.labelsize': 14,  # Y 轴刻度 (Tick labels)
-    'legend.fontsize': 14,  # 图例 (Legend)
+    # --- Font Sizes ---
+    'font.size': 14,  # Base font size (for regular text)
+    'axes.titlesize': 18,  # Figure title
+    'axes.labelsize': 16,  # X and Y axis labels
+    'xtick.labelsize': 14,  # X-axis tick labels
+    'ytick.labelsize': 14,  # Y-axis tick labels
+    'legend.fontsize': 14,  # Legend
 
-    # --- 线条和标记 (Lines & Markers) ---
-    'lines.linewidth': 3.0,  # 全局线宽
-    'lines.markersize': 10,  # 全局标记大小
+    # --- Lines & Markers ---
+    'lines.linewidth': 3.0,  # Global line width
+    'lines.markersize': 10,  # Global marker size
 
-    # --- 字体粗细 (Font Weight) ---
-    'axes.titleweight': 'bold',  # 标题加粗
-    'axes.labelweight': 'bold',  # 标签加粗
+    # --- Font Weight ---
+    'axes.titleweight': 'bold',  # Bold title
+    'axes.labelweight': 'bold',  # Bold labels
 
-    # --- 图例设置 ---
-    'legend.frameon': True,  # 显示图例边框
-    'legend.shadow': True,  # 图例显示阴影
+    # --- Legend settings ---
+    'legend.frameon': True,  # Show legend frame
+    'legend.shadow': True,  # Show legend shadow
 })
 
 
-# --- 结束全局设置 ---
+# --- End global settings ---
 
 
 def linear_kernel(X, Y):
@@ -485,30 +485,30 @@ def plot_single_metric(all_results, metric_name, scale, output_dir, dpi=300):
     """Plot a single metric across layers for one model scale"""
     plt.figure(figsize=(8, 6))
 
-    # --- 1. 应用新的样式和配色方案 ---
+    # --- 1. Apply the new style and color scheme ---
 
-    # 3. 为每个图表类型定义专属配色 (idiom, poems)
+    # 3. Define dedicated colors for each plot type (idiom, poems)
     metric_colors = {
-        'cka': {'idiom': '#d81159', 'poems': '#8f2d56'},  # 红色/紫色系
-        'cosine': {'idiom': '#0081a7', 'poems': '#00afb9'},  # 蓝色/青色系
-        'effective_rank_diff': {'idiom': '#f77f00', 'poems': '#fcbf49'},  # 橙色/黄色系
-        'layer_distance': {'idiom': '#2d6a4f', 'poems': '#52b788'},  # 绿色系
-        'default': {'idiom': '#2E86AB', 'poems': '#A23B72'}  # 默认
+        'cka': {'idiom': '#d81159', 'poems': '#8f2d56'},  # Red/purple palette
+        'cosine': {'idiom': '#0081a7', 'poems': '#00afb9'},  # Blue/cyan palette
+        'effective_rank_diff': {'idiom': '#f77f00', 'poems': '#fcbf49'},  # Orange/yellow palette
+        'layer_distance': {'idiom': '#2d6a4f', 'poems': '#52b788'},  # Green palette
+        'default': {'idiom': '#2E86AB', 'poems': '#A23B72'}  # Default
     }
     colors = metric_colors.get(metric_name, metric_colors['default'])
 
-    # 2. 为每个图表类型定义专属标记 (idiom, poems)
+    # 2. Define dedicated markers for each plot type (idiom, poems)
     metric_markers = {
-        'cka': {'idiom': 'X', 'poems': 'D'},  # CKA: X 和 菱形
-        'cosine': {'idiom': '^', 'poems': 'v'},  # Cosine: 三角形 (上/下)
-        'effective_rank_diff': {'idiom': 's', 'poems': 'P'},  # Rank: 方形 和 十字
-        'layer_distance': {'idiom': 'o', 'poems': '*'},  # Distance: 圆形 和 星形
-        'default': {'idiom': 'o', 'poems': 's'}  # 默认
+        'cka': {'idiom': 'X', 'poems': 'D'},  # CKA: X and diamond
+        'cosine': {'idiom': '^', 'poems': 'v'},  # Cosine: triangles (up/down)
+        'effective_rank_diff': {'idiom': 's', 'poems': 'P'},  # Rank: square and plus
+        'layer_distance': {'idiom': 'o', 'poems': '*'},  # Distance: circle and star
+        'default': {'idiom': 'o', 'poems': 's'}  # Default
     }
     markers = metric_markers.get(metric_name, metric_markers['default'])
 
-    # --- [已删除] 旧的硬编码样式 ---
-    # 移除了 metric_ylims 字典，Y轴将自动缩放
+    # --- [Deleted] Old hard-coded style ---
+    # Removed the metric_ylims dict; the Y-axis will autoscale
 
     for dataset_type in ['idiom', 'poems']:
         if dataset_type in all_results:
@@ -520,19 +520,19 @@ def plot_single_metric(all_results, metric_name, scale, output_dir, dpi=300):
 
                 label = 'Idiom' if dataset_type == 'idiom' else 'Poem'
 
-                # [已修改] plt.plot() 现在使用全局 rcParams 的线宽和标记大小
+                # [Updated] plt.plot() now uses global rcParams for line width and marker size
                 plt.plot(layers, values,
                          marker=markers[dataset_type],
                          color=colors[dataset_type],
                          label=label,
                          alpha=0.8)
 
-    # 移除了设置固定 plt.ylim() 的 if 语句
+    # Removed the fixed plt.ylim() block
 
-    # [已修改] xlabel 现在使用全局 rcParams 的字体
+    # [Updated] xlabel now uses global rcParams fonts
     plt.xlabel('Layer Index', labelpad=2)
 
-    # Metric-specific y-label (不变)
+    # Metric-specific y-label (unchanged)
     ylabel_map = {
         'cka': 'CKA Similarity',
         'cosine': 'Cosine Similarity',
@@ -545,14 +545,14 @@ def plot_single_metric(all_results, metric_name, scale, output_dir, dpi=300):
     }
 
     ylabel = ylabel_map.get(metric_name, metric_name.replace('_', ' ').title())
-    # [已修改] ylabel 现在使用全局 rcParams 的字体
-    # plt.ylabel(ylabel) # 你可以取消这行的注释并设置Y轴标签
+    # [Updated] ylabel now uses global rcParams fonts
+    # plt.ylabel(ylabel) # You can uncomment this line to set the Y-axis label
 
-    # 设置Y轴刻度格式为小数点后两位 (保留)
+    # Format Y-axis ticks to three decimals (kept)
     ax = plt.gca()
     ax.yaxis.set_major_formatter(mticker.FormatStrFormatter('%.3f'))
 
-    # Title (不变)
+    # Title (unchanged)
     title_map = {
         'cka': 'CKA',
         'cosine': 'Cosine Similarity',
@@ -565,15 +565,15 @@ def plot_single_metric(all_results, metric_name, scale, output_dir, dpi=300):
     }
 
     title = title_map.get(metric_name, metric_name.replace('_', ' ').title())
-    # [已修改] title 现在使用全局 rcParams 的字体
+    # [Updated] title now uses global rcParams fonts
     plt.title(f'{title} ({scale})', pad=3)
 
-    # [已修改] legend 现在使用全局 rcParams 的字体和样式
-    # plt.legend() # 你可以取消这行的注释来显示图例
+    # [Updated] legend now uses global rcParams fonts and styles
+    # plt.legend() # You can uncomment this line to show the legend
     plt.grid(True, alpha=0.3, linestyle='--')
     plt.tight_layout()
 
-    # Save (不变)
+    # Save (unchanged)
     filename = f'{metric_name}_{scale}.pdf'
     save_path = os.path.join(output_dir, filename)
     plt.savefig(save_path, dpi=dpi, bbox_inches='tight')
@@ -600,7 +600,7 @@ def plot_rank_and_anisotropy_comparison(all_results, scale, output_dir, dpi=300)
                 layers = np.arange(num_layers)
 
                 if 'effective_rank_base' in metrics and 'effective_rank_sft' in metrics:
-                    # [已修改] 移除硬编码的 linewidth
+                    # [Updated] Remove hard-coded linewidth
                     ax.plot(layers, metrics['effective_rank_base'],
                             marker='o', label=f'{dataset_label} (Base)',
                             color=colors['base'], alpha=0.7)
@@ -608,11 +608,11 @@ def plot_rank_and_anisotropy_comparison(all_results, scale, output_dir, dpi=300)
                             marker='s', label=f'{dataset_label} (SFT)',
                             color=colors['sft'], alpha=0.7)
 
-    # [已修改] 移除硬编码的 fontsize 和 fontweight
+    # [Updated] Remove hard-coded fontsize and fontweight
     ax.set_xlabel('Layer Index')
     ax.set_ylabel('Effective Rank')
     ax.set_title(f'Effective Rank Comparison ({scale})')
-    ax.legend()  # [已修改] 移除硬编码的 fontsize
+    ax.legend()  # [Updated] Remove hard-coded fontsize
     ax.grid(True, alpha=0.3)
 
     # Plot 2: Anisotropy
@@ -626,7 +626,7 @@ def plot_rank_and_anisotropy_comparison(all_results, scale, output_dir, dpi=300)
                 layers = np.arange(num_layers)
 
                 if 'anisotropy_base' in metrics and 'anisotropy_sft' in metrics:
-                    # [已修改] 移除硬编码的 linewidth
+                    # [Updated] Remove hard-coded linewidth
                     ax.plot(layers, metrics['anisotropy_base'],
                             marker='o', label=f'{dataset_label} (Base)',
                             color=colors['base'], alpha=0.7)
@@ -634,11 +634,11 @@ def plot_rank_and_anisotropy_comparison(all_results, scale, output_dir, dpi=300)
                             marker='s', label=f'{dataset_label} (SFT)',
                             color=colors['sft'], alpha=0.7)
 
-    # [已修改] 移除硬编码的 fontsize 和 fontweight
+    # [Updated] Remove hard-coded fontsize and fontweight
     ax.set_xlabel('Layer Index')
-    # ax.set_ylabel('Anisotropy Coefficient') # [已修改] 移除硬编码的 fontsize 和 fontweight
+    # ax.set_ylabel('Anisotropy Coefficient') # [Updated] Remove hard-coded fontsize and fontweight
     ax.set_title(f'Anisotropy Comparison - {scale}')
-    ax.legend()  # [已修改] 移除硬编码的 fontsize
+    ax.legend()  # [Updated] Remove hard-coded fontsize
     ax.grid(True, alpha=0.3)
 
     plt.tight_layout()

@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-实验1.2 - 指令微调数据集分析（修复版）
-分析Tulu3指令微调数据集的结构、模式和特征，为后续构建词典和对比分析提供基础
+Experiment 1.2 - Instruction-tuning dataset analysis (fixed version)
+Analyze the structure, patterns, and features of the Tulu3 instruction-tuning dataset,
+providing a foundation for subsequent dictionary construction and comparative analysis.
 """
 
 import json
@@ -22,34 +23,34 @@ import matplotlib.pyplot as plt
 import numpy as np
 import warnings
 
-# 忽略字体相关的警告
+# Ignore font-related warnings
 warnings.filterwarnings('ignore', category=UserWarning, module='matplotlib')
 
 
 def setup_chinese_fonts():
-    """设置中文字体显示"""
-    # 尝试多种中文字体
+    """Configure Chinese font rendering"""
+    # Try multiple Chinese fonts
     chinese_fonts = [
-        'SimHei',  # Windows 黑体
-        'Heiti TC',  # macOS 黑体
-        'WenQuanYi Micro Hei',  # Linux 文泉驿微米黑
-        'Noto Sans CJK SC',  # Google Noto 字体
-        'DejaVu Sans',  # 备用字体
+        'SimHei',  # Windows HeiTi
+        'Heiti TC',  # macOS HeiTi
+        'WenQuanYi Micro Hei',  # Linux WenQuanYi Micro Hei
+        'Noto Sans CJK SC',  # Google Noto font
+        'DejaVu Sans',  # Fallback font
     ]
 
-    # 设置字体
+    # Set fonts
     plt.rcParams['font.sans-serif'] = chinese_fonts
     plt.rcParams['axes.unicode_minus'] = False
 
-    # 设置 seaborn 样式
+    # Set seaborn style
     sns.set_style("whitegrid")
     plt.rcParams['figure.figsize'] = (12, 8)
 
 
-# 初始化中文字体设置
+# Initialize Chinese font settings
 setup_chinese_fonts()
 
-# 加载spacy模型，如果没有安装则使用简单的分析方法
+# Load spaCy model; if unavailable, use a simplified analysis method
 try:
     nlp = spacy.load("en_core_web_sm")
     SPACY_AVAILABLE = True
@@ -60,7 +61,7 @@ except:
 
 def convert_numpy_types(obj):
     """
-    递归转换numpy类型为Python原生类型，解决JSON序列化问题
+    Recursively convert NumPy types to native Python types to resolve JSON serialization issues
     """
     if isinstance(obj, np.integer):
         return int(obj)
@@ -80,14 +81,14 @@ def convert_numpy_types(obj):
 
 def load_instruction_data(data_file: str, max_samples: int = None) -> List[Dict]:
     """
-    加载指令微调数据
+    Load instruction-tuning data
 
     Args:
-        data_file: 数据文件路径
-        max_samples: 最大样本数，None表示加载全部
+        data_file: Path to the data file
+        max_samples: Maximum number of samples; None means load all
 
     Returns:
-        data_list: 指令数据列表
+        data_list: List of instruction data
     """
     if not os.path.exists(data_file):
         print(f"错误: 文件不存在 {data_file}")
@@ -112,21 +113,21 @@ def load_instruction_data(data_file: str, max_samples: int = None) -> List[Dict]
 
 def extract_instruction_response_pairs(data_list: List[Dict]) -> List[Dict]:
     """
-    提取指令-回答对
+    Extract instruction-response pairs
 
     Args:
-        data_list: 原始数据列表
+        data_list: Original data list
 
     Returns:
-        pairs: 提取的指令-回答对列表
-        每个元素包含: {'instruction': str, 'response': str, 'metadata': dict}
+        pairs: Extracted list of instruction-response pairs
+        Each element contains: {'instruction': str, 'response': str, 'metadata': dict}
     """
     pairs = []
 
     for i, item in enumerate(data_list):
         instruction = item['prompt']
         response = item['generation']
-        # 确保提取到有效的指令和回答
+        # Ensure valid instruction and response are extracted
         if instruction and response and len(instruction.strip()) > 0 and len(response.strip()) > 0:
             pairs.append({
                 'instruction': instruction.strip(),
@@ -139,41 +140,41 @@ def extract_instruction_response_pairs(data_list: List[Dict]) -> List[Dict]:
 
 def analyze_instruction_patterns(pairs: List[Dict]) -> Dict[str, Any]:
     """
-    分析指令的语言模式和结构
+    Analyze instruction language patterns and structure
 
     Args:
-        pairs: 指令-回答对列表
+        pairs: List of instruction-response pairs
 
     Returns:
-        patterns: 指令模式分析结果
+        patterns: Instruction pattern analysis results
     """
     patterns = {
-        'sentence_types': {},  # 句子类型统计
-        'instruction_verbs': {},  # 指令动词统计
-        'question_words': {},  # 疑问词统计
-        'length_distribution': {},  # 长度分布
-        'template_patterns': {},  # 模板模式
-        'task_categories': {}  # 任务类别
+        'sentence_types': {},  # Sentence type statistics
+        'instruction_verbs': {},  # Instruction verb statistics
+        'question_words': {},  # Question word statistics
+        'length_distribution': {},  # Length distribution
+        'template_patterns': {},  # Template patterns
+        'task_categories': {}  # Task categories
     }
 
     instructions = [pair['instruction'] for pair in pairs]
 
-    # 1. 分析句子类型
+    # 1. Analyze sentence types
     patterns['sentence_types'] = analyze_sentence_types(instructions)
 
-    # 2. 分析指令动词
+    # 2. Analyze instruction verbs
     patterns['instruction_verbs'] = extract_instruction_verbs(instructions)
 
-    # 3. 分析疑问词
+    # 3. Analyze question words
     patterns['question_words'] = analyze_question_words(instructions)
 
-    # 4. 长度分布分析
+    # 4. Length distribution analysis
     patterns['length_distribution'] = analyze_length_distribution(instructions)
 
-    # 5. 提取模板模式
+    # 5. Extract template patterns
     patterns['template_patterns'] = extract_template_patterns(instructions)
 
-    # 6. 任务类别分析
+    # 6. Task category analysis
     patterns['task_categories'] = categorize_tasks(instructions)
 
     return patterns
@@ -181,46 +182,46 @@ def analyze_instruction_patterns(pairs: List[Dict]) -> Dict[str, Any]:
 
 def analyze_sentence_types(instructions: List[str]) -> Dict[str, Any]:
     """
-    分析句子类型（疑问句、祈使句、陈述句等）
+    Analyze sentence types (questions, imperatives, declaratives, etc.)
 
     Args:
-        instructions: 指令文本列表
+        instructions: List of instruction texts
 
     Returns:
-        sentence_types: 句子类型统计
+        sentence_types: Sentence type statistics
     """
     types = {
-        'question': 0,  # 疑问句
-        'imperative': 0,  # 祈使句
-        'declarative': 0,  # 陈述句
-        'conditional': 0  # 条件句
+        'question': 0,  # Question
+        'imperative': 0,  # Imperative
+        'declarative': 0,  # Declarative
+        'conditional': 0  # Conditional
     }
 
     for instruction in instructions:
         instruction_lower = instruction.lower().strip()
 
-        # 疑问句识别
+        # Question detection
         if (instruction.endswith('?') or
                 any(instruction_lower.startswith(qw) for qw in
                     ['what', 'how', 'why', 'when', 'where', 'which', 'who', 'can you', 'could you', 'do you',
                      'are you'])):
             types['question'] += 1
 
-        # 祈使句识别
+        # Imperative detection
         elif (any(instruction_lower.startswith(verb) for verb in
                   ['write', 'create', 'generate', 'explain', 'describe', 'provide', 'give', 'make', 'list', 'tell']) or
               'please' in instruction_lower):
             types['imperative'] += 1
 
-        # 条件句识别
+        # Conditional detection
         elif any(word in instruction_lower for word in ['if', 'suppose', 'assume', 'given that']):
             types['conditional'] += 1
 
-        # 其他归为陈述句
+        # Otherwise treat as declarative
         else:
             types['declarative'] += 1
 
-    # 转换为比例
+    # Convert to proportions
     total = len(instructions)
     return {
         'counts': types,
@@ -231,15 +232,15 @@ def analyze_sentence_types(instructions: List[str]) -> Dict[str, Any]:
 
 def extract_instruction_verbs(instructions: List[str]) -> Dict[str, Any]:
     """
-    提取和统计指令动词
+    Extract and count instruction verbs
 
     Args:
-        instructions: 指令文本列表
+        instructions: List of instruction texts
 
     Returns:
-        verb_analysis: 动词分析结果
+        verb_analysis: Verb analysis results
     """
-    # 预定义的指令动词列表
+    # Predefined list of instruction verbs
     instruction_verbs = [
         'write', 'create', 'generate', 'explain', 'describe', 'provide', 'give',
         'make', 'list', 'tell', 'show', 'demonstrate', 'teach', 'help',
@@ -250,14 +251,14 @@ def extract_instruction_verbs(instructions: List[str]) -> Dict[str, Any]:
     ]
 
     verb_counts = Counter()
-    verb_positions = defaultdict(list)  # 记录动词在句子中的位置
+    verb_positions = defaultdict(list)  # Record verb positions within sentences
 
     for i, instruction in enumerate(instructions):
         instruction_lower = instruction.lower()
         words = instruction_lower.split()
 
         for j, word in enumerate(words):
-            # 去除标点符号
+            # Remove punctuation
             clean_word = re.sub(r'[^\w]', '', word)
             if clean_word in instruction_verbs:
                 verb_counts[clean_word] += 1
@@ -267,7 +268,7 @@ def extract_instruction_verbs(instructions: List[str]) -> Dict[str, Any]:
                     'relative_position': j / len(words) if len(words) > 0 else 0
                 })
 
-    # 分析动词位置分布
+    # Analyze verb position distributions
     position_analysis = {}
     for verb, positions in verb_positions.items():
         if positions:
@@ -288,13 +289,13 @@ def extract_instruction_verbs(instructions: List[str]) -> Dict[str, Any]:
 
 def analyze_question_words(instructions: List[str]) -> Dict[str, Any]:
     """
-    分析疑问词的使用
+    Analyze usage of question words
 
     Args:
-        instructions: 指令文本列表
+        instructions: List of instruction texts
 
     Returns:
-        question_analysis: 疑问词分析结果
+        question_analysis: Question word analysis results
     """
     question_words = ['what', 'how', 'why', 'when', 'where', 'which', 'who', 'whose', 'whom']
 
@@ -310,7 +311,7 @@ def analyze_question_words(instructions: List[str]) -> Dict[str, Any]:
             if clean_word in question_words:
                 qword_counts[clean_word] += 1
 
-                # 提取上下文（前后各2个词）
+                # Extract context (2 words before and after)
                 start = max(0, j - 2)
                 end = min(len(words), j + 3)
                 context = ' '.join(words[start:end])
@@ -318,20 +319,20 @@ def analyze_question_words(instructions: List[str]) -> Dict[str, Any]:
 
     return {
         'question_word_frequencies': dict(qword_counts.most_common()),
-        'contexts': {word: contexts[:5] for word, contexts in qword_contexts.items()},  # 保存前5个上下文
+        'contexts': {word: contexts[:5] for word, contexts in qword_contexts.items()},  # Keep first 5 contexts
         'total_questions': int(sum(qword_counts.values()))
     }
 
 
 def analyze_length_distribution(instructions: List[str]) -> Dict[str, Any]:
     """
-    分析指令长度分布
+    Analyze instruction length distribution
 
     Args:
-        instructions: 指令文本列表
+        instructions: List of instruction texts
 
     Returns:
-        length_stats: 长度分布统计
+        length_stats: Length distribution statistics
     """
     char_lengths = [len(instruction) for instruction in instructions]
     word_lengths = [len(instruction.split()) for instruction in instructions]
@@ -370,15 +371,15 @@ def analyze_length_distribution(instructions: List[str]) -> Dict[str, Any]:
 
 def extract_template_patterns(instructions: List[str]) -> Dict[str, Any]:
     """
-    提取常见的指令模板模式
+    Extract common instruction template patterns
 
     Args:
-        instructions: 指令文本列表
+        instructions: List of instruction texts
 
     Returns:
-        templates: 模板模式分析
+        templates: Template pattern analysis
     """
-    # 定义常见模板模式
+    # Define common template patterns
     template_patterns = {
         'please_verb': r'^please\s+\w+',
         'can_you': r'^can you\s+\w+',
@@ -403,9 +404,9 @@ def extract_template_patterns(instructions: List[str]) -> Dict[str, Any]:
                 matches.append(instruction)
 
         pattern_counts[pattern_name] = len(matches)
-        pattern_examples[pattern_name] = matches[:5]  # 保存前5个例子
+        pattern_examples[pattern_name] = matches[:5]  # Keep first 5 examples
 
-    # 找出最常见的开头词
+    # Find the most common first words
     first_words = []
     for instruction in instructions:
         words = instruction.lower().split()
@@ -422,15 +423,15 @@ def extract_template_patterns(instructions: List[str]) -> Dict[str, Any]:
 
 def categorize_tasks(instructions: List[str]) -> Dict[str, Any]:
     """
-    根据指令内容对任务进行分类
+    Categorize tasks based on instruction content
 
     Args:
-        instructions: 指令文本列表
+        instructions: List of instruction texts
 
     Returns:
-        categories: 任务分类结果
+        categories: Task categorization results
     """
-    # 定义任务类别关键词
+    # Define task-category keywords
     task_keywords = {
         'writing': ['write', 'compose', 'draft', 'author', 'essay', 'article', 'story', 'letter'],
         'explanation': ['explain', 'describe', 'clarify', 'elaborate', 'detail'],
@@ -455,7 +456,7 @@ def categorize_tasks(instructions: List[str]) -> Dict[str, Any]:
             for keyword in keywords:
                 if keyword in instruction_lower:
                     category_counts[category] += 1
-                    if len(category_examples[category]) < 3:  # 保存前3个例子
+                    if len(category_examples[category]) < 3:  # Keep first 3 examples
                         category_examples[category].append(instruction)
                     categorized = True
                     break
@@ -477,37 +478,37 @@ def categorize_tasks(instructions: List[str]) -> Dict[str, Any]:
 
 def analyze_response_patterns(pairs: List[Dict]) -> Dict[str, Any]:
     """
-    分析回答的语言模式和结构
+    Analyze response language patterns and structure
 
     Args:
-        pairs: 指令-回答对列表
+        pairs: List of instruction-response pairs
 
     Returns:
-        response_patterns: 回答模式分析结果
+        response_patterns: Response pattern analysis results
     """
     responses = [pair['response'] for pair in pairs]
 
     patterns = {
-        'opening_phrases': {},  # 开场白短语
-        'structural_markers': {},  # 结构化标记
-        'closing_phrases': {},  # 结尾短语
-        'length_distribution': {},  # 长度分布
-        'formality_indicators': {}  # 正式性指标
+        'opening_phrases': {},  # Opening phrases
+        'structural_markers': {},  # Structural markers
+        'closing_phrases': {},  # Closing phrases
+        'length_distribution': {},  # Length distribution
+        'formality_indicators': {}  # Formality indicators
     }
 
-    # 1. 分析开场白
+    # 1. Analyze openings
     patterns['opening_phrases'] = analyze_opening_phrases(responses)
 
-    # 2. 分析结构化标记
+    # 2. Analyze structural markers
     patterns['structural_markers'] = analyze_structural_markers(responses)
 
-    # 3. 分析结尾短语
+    # 3. Analyze closing phrases
     patterns['closing_phrases'] = analyze_closing_phrases(responses)
 
-    # 4. 长度分布
+    # 4. Length distribution
     patterns['length_distribution'] = analyze_length_distribution(responses)
 
-    # 5. 正式性指标
+    # 5. Formality indicators
     patterns['formality_indicators'] = analyze_formality_indicators(responses)
 
     return patterns
@@ -515,15 +516,15 @@ def analyze_response_patterns(pairs: List[Dict]) -> Dict[str, Any]:
 
 def analyze_opening_phrases(responses: List[str]) -> Dict[str, Any]:
     """
-    分析回答的开场白短语
+    Analyze response opening phrases
 
     Args:
-        responses: 回答文本列表
+        responses: List of response texts
 
     Returns:
-        opening_analysis: 开场白分析结果
+        opening_analysis: Opening analysis results
     """
-    # 定义常见开场白模式
+    # Define common opening patterns
     opening_patterns = [
         r'^(certainly|sure|of course|absolutely)',
         r'^(here are|here is|here\'s)',
@@ -551,7 +552,7 @@ def analyze_opening_phrases(responses: List[str]) -> Dict[str, Any]:
                 if len(pattern_examples[pattern_name]) < 3:
                     pattern_examples[pattern_name].append(response[:100] + "...")
 
-    # 分析第一个词
+    # Analyze first word
     first_words = []
     for response in responses:
         words = response.split()
@@ -568,13 +569,13 @@ def analyze_opening_phrases(responses: List[str]) -> Dict[str, Any]:
 
 def analyze_structural_markers(responses: List[str]) -> Dict[str, Any]:
     """
-    分析结构化标记的使用
+    Analyze usage of structural markers
 
     Args:
-        responses: 回答文本列表
+        responses: List of response texts
 
     Returns:
-        structure_analysis: 结构化标记分析结果
+        structure_analysis: Structural marker analysis results
     """
     markers = {
         'numbered_lists': r'^\s*\d+\.',
@@ -594,7 +595,7 @@ def analyze_structural_markers(responses: List[str]) -> Dict[str, Any]:
             if matches:
                 marker_counts[marker_name] += len(matches)
                 if len(marker_examples[marker_name]) < 3:
-                    # 提取包含标记的句子
+                    # Extract sentences containing the marker
                     sentences = response.split('\n')
                     for sentence in sentences:
                         if re.search(pattern, sentence, re.IGNORECASE):
@@ -612,13 +613,13 @@ def analyze_structural_markers(responses: List[str]) -> Dict[str, Any]:
 
 def analyze_closing_phrases(responses: List[str]) -> Dict[str, Any]:
     """
-    分析结尾短语
+    Analyze closing phrases
 
     Args:
-        responses: 回答文本列表
+        responses: List of response texts
 
     Returns:
-        closing_analysis: 结尾短语分析结果
+        closing_analysis: Closing phrase analysis results
     """
     closing_patterns = [
         r'(let me know|feel free to ask)',
@@ -633,7 +634,7 @@ def analyze_closing_phrases(responses: List[str]) -> Dict[str, Any]:
     pattern_examples = defaultdict(list)
 
     for response in responses:
-        # 只分析最后一两句
+        # Only analyze the last one or two sentences
         sentences = response.split('.')
         last_part = '. '.join(sentences[-2:]).lower()
 
@@ -653,13 +654,13 @@ def analyze_closing_phrases(responses: List[str]) -> Dict[str, Any]:
 
 def analyze_formality_indicators(responses: List[str]) -> Dict[str, Any]:
     """
-    分析正式性指标
+    Analyze formality indicators
 
     Args:
-        responses: 回答文本列表
+        responses: List of response texts
 
     Returns:
-        formality_analysis: 正式性分析结果
+        formality_analysis: Formality analysis results
     """
     formal_indicators = [
         'furthermore', 'therefore', 'consequently', 'subsequently', 'nevertheless',
@@ -695,26 +696,26 @@ def visualize_instruction_analysis(instruction_patterns: Dict[str, Any],
                                    response_patterns: Dict[str, Any],
                                    output_dir: str):
     """
-    可视化指令分析结果
+    Visualize instruction analysis results
 
     Args:
-        instruction_patterns: 指令模式分析结果
-        response_patterns: 回答模式分析结果
-        output_dir: 输出目录
+        instruction_patterns: Instruction pattern analysis results
+        response_patterns: Response pattern analysis results
+        output_dir: Output directory
     """
     os.makedirs(output_dir, exist_ok=True)
 
-    # 重新设置字体
+    # Reset font configuration
     setup_chinese_fonts()
 
-    # 1. 指令分析可视化
+    # 1. Instruction analysis visualization
     fig, axes = plt.subplots(2, 2, figsize=(16, 12))
 
-    # 句子类型分布
+    # Sentence type distribution
     ax1 = axes[0, 0]
     sentence_types = instruction_patterns['sentence_types']['proportions']
     if sentence_types:
-        # 使用英文标签避免中文显示问题
+        # Use English labels to avoid Chinese rendering issues
         labels_map = {
             'question': 'Question',
             'imperative': 'Imperative',
@@ -726,7 +727,7 @@ def visualize_instruction_analysis(instruction_patterns: Dict[str, Any],
         ax1.pie(values, labels=labels, autopct='%1.1f%%')
         ax1.set_title('Instruction Sentence Types', fontsize=14)
 
-    # 指令动词频率
+    # Instruction verb frequency
     ax2 = axes[0, 1]
     verb_freq = instruction_patterns['instruction_verbs']['verb_frequencies']
     if verb_freq:
@@ -740,7 +741,7 @@ def visualize_instruction_analysis(instruction_patterns: Dict[str, Any],
         ax2.set_title('Top 15 Instruction Verbs')
         ax2.invert_yaxis()
 
-    # 任务类别分布
+    # Task category distribution
     ax3 = axes[1, 0]
     task_cats = instruction_patterns['task_categories']['category_proportions']
     if task_cats:
@@ -752,7 +753,7 @@ def visualize_instruction_analysis(instruction_patterns: Dict[str, Any],
         ax3.set_title('Task Category Distribution')
         ax3.tick_params(axis='x', rotation=45)
 
-    # 长度分布
+    # Length distribution
     ax4 = axes[1, 1]
     if 'raw_word_lengths' in instruction_patterns['length_distribution']:
         word_lengths = instruction_patterns['length_distribution']['raw_word_lengths']
@@ -765,10 +766,10 @@ def visualize_instruction_analysis(instruction_patterns: Dict[str, Any],
     plt.savefig(os.path.join(output_dir, 'instruction_analysis.png'), dpi=300, bbox_inches='tight')
     plt.close()
 
-    # 2. 回答分析可视化
+    # 2. Response analysis visualization
     fig, axes = plt.subplots(2, 2, figsize=(16, 12))
 
-    # 开场白频率
+    # Opening frequency
     ax1 = axes[0, 0]
     opening_freq = response_patterns['opening_phrases']['common_first_words']
     if opening_freq:
@@ -783,7 +784,7 @@ def visualize_instruction_analysis(instruction_patterns: Dict[str, Any],
             ax1.set_title('Common Opening Words')
             ax1.invert_yaxis()
 
-    # 结构化标记
+    # Structural markers
     ax2 = axes[0, 1]
     structure_freq = response_patterns['structural_markers']['marker_frequencies']
     if structure_freq:
@@ -795,7 +796,7 @@ def visualize_instruction_analysis(instruction_patterns: Dict[str, Any],
         ax2.set_title('Structural Marker Usage')
         ax2.tick_params(axis='x', rotation=45)
 
-    # 正式性指标
+    # Formality indicators
     ax3 = axes[1, 0]
     formality = response_patterns['formality_indicators']
     formal_count = formality['formal_indicator_count']
@@ -804,7 +805,7 @@ def visualize_instruction_analysis(instruction_patterns: Dict[str, Any],
     ax3.set_ylabel('Count')
     ax3.set_title('Formality Indicators')
 
-    # 回答长度分布
+    # Response length distribution
     ax4 = axes[1, 1]
     if 'raw_word_lengths' in response_patterns['length_distribution']:
         word_lengths = response_patterns['length_distribution']['raw_word_lengths']
@@ -823,27 +824,27 @@ def visualize_instruction_analysis(instruction_patterns: Dict[str, Any],
 def save_analysis_results(pairs: List[Dict], instruction_patterns: Dict[str, Any],
                           response_patterns: Dict[str, Any], output_dir: str):
     """
-    保存分析结果
+    Save analysis results
 
     Args:
-        pairs: 指令-回答对
-        instruction_patterns: 指令模式分析结果
-        response_patterns: 回答模式分析结果
-        output_dir: 输出目录
+        pairs: Instruction-response pairs
+        instruction_patterns: Instruction pattern analysis results
+        response_patterns: Response pattern analysis results
+        output_dir: Output directory
     """
     os.makedirs(output_dir, exist_ok=True)
 
-    # 保存指令-回答对数据
+    # Save instruction-response pair data
     pairs_file = os.path.join(output_dir, 'instruction_response_pairs.json')
     with open(pairs_file, 'w', encoding='utf-8') as f:
-        # 转换numpy类型
-        pairs_to_save = convert_numpy_types(pairs[:1000])  # 只保存前1000个以节省空间
+        # Convert NumPy types
+        pairs_to_save = convert_numpy_types(pairs[:1000])  # Only save the first 1000 to reduce size
         json.dump(pairs_to_save, f, ensure_ascii=False, indent=2)
 
-    # 保存指令模式分析
+    # Save instruction pattern analysis
     instruction_file = os.path.join(output_dir, 'instruction_patterns.json')
     with open(instruction_file, 'w', encoding='utf-8') as f:
-        # 移除原始长度数据以减少文件大小，并转换numpy类型
+        # Remove raw length fields to reduce file size, and convert NumPy types
         patterns_to_save = dict(instruction_patterns)
         if 'length_distribution' in patterns_to_save:
             patterns_to_save['length_distribution'] = {
@@ -853,10 +854,10 @@ def save_analysis_results(pairs: List[Dict], instruction_patterns: Dict[str, Any
         patterns_to_save = convert_numpy_types(patterns_to_save)
         json.dump(patterns_to_save, f, ensure_ascii=False, indent=2)
 
-    # 保存回答模式分析
+    # Save response pattern analysis
     response_file = os.path.join(output_dir, 'response_patterns.json')
     with open(response_file, 'w', encoding='utf-8') as f:
-        # 移除原始长度数据以减少文件大小，并转换numpy类型
+        # Remove raw length fields to reduce file size, and convert NumPy types
         patterns_to_save = dict(response_patterns)
         if 'length_distribution' in patterns_to_save:
             patterns_to_save['length_distribution'] = {
@@ -866,7 +867,7 @@ def save_analysis_results(pairs: List[Dict], instruction_patterns: Dict[str, Any
         patterns_to_save = convert_numpy_types(patterns_to_save)
         json.dump(patterns_to_save, f, ensure_ascii=False, indent=2)
 
-    # 生成分析报告
+    # Generate analysis report
     report_file = os.path.join(output_dir, 'instruction_dataset_report.txt')
     with open(report_file, 'w', encoding='utf-8') as f:
         f.write("指令微调数据集分析报告\n")
@@ -874,7 +875,7 @@ def save_analysis_results(pairs: List[Dict], instruction_patterns: Dict[str, Any
 
         f.write(f"总指令-回答对数量: {len(pairs)}\n\n")
 
-        # 指令分析摘要
+        # Instruction analysis summary
         f.write("指令分析摘要:\n")
         f.write("-" * 30 + "\n")
 
@@ -892,7 +893,7 @@ def save_analysis_results(pairs: List[Dict], instruction_patterns: Dict[str, Any
         for cat, prop in sorted(task_cats.items(), key=lambda x: x[1], reverse=True):
             f.write(f"  {cat}: {prop:.1%}\n")
 
-        # 回答分析摘要
+        # Response analysis summary
         f.write(f"\n\n回答分析摘要:\n")
         f.write("-" * 30 + "\n")
 
@@ -938,33 +939,33 @@ def main():
     print(f"最大样本数: {args.max_samples}")
     print(f"输出目录: {args.output_dir}")
 
-    # 加载数据
+    # Load data
     data_list = load_instruction_data(args.data_file, args.max_samples)
 
     if not data_list:
         print("错误: 未加载到任何数据")
         return
 
-    # 提取指令-回答对
+    # Extract instruction-response pairs
     pairs = extract_instruction_response_pairs(data_list)
 
     if not pairs:
         print("错误: 未提取到有效的指令-回答对")
         return
 
-    # 分析指令模式
+    # Analyze instruction patterns
     print("分析指令模式...")
     instruction_patterns = analyze_instruction_patterns(pairs)
 
-    # 分析回答模式
+    # Analyze response patterns
     print("分析回答模式...")
     response_patterns = analyze_response_patterns(pairs)
 
-    # 可视化结果
+    # Visualize results
     print("生成可视化图表...")
     visualize_instruction_analysis(instruction_patterns, response_patterns, args.output_dir)
 
-    # 保存分析结果
+    # Save analysis results
     print("保存分析结果...")
     save_analysis_results(pairs, instruction_patterns, response_patterns, args.output_dir)
 

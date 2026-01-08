@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-指令微调对模型记忆影响的数据分析和可视化工具
-用于分析不同模型规模、数据集类型和生成长度下base模型和SFT模型的特征差异
+Data analysis and visualization tool for the impact of instruction fine-tuning on model memorization
+Used to analyze characteristic differences between base and SFT models under different model scales,
+dataset types, and generation lengths
 """
 
 import json
@@ -16,37 +17,37 @@ import sys
 
 
 class MemorizationAnalyzer:
-    """记忆分析主类，用于处理和分析指令微调对模型记忆的影响"""
+    """Main memorization analysis class for processing and analyzing the impact of instruction fine-tuning on model memorization"""
 
     def __init__(self, data_dir: str, output_dir: str):
         """
-        初始化分析器
+        Initialize analyzer.
 
         Args:
-            data_dir: 数据文件目录路径，包含所有JSON结果文件
-            output_dir: 输出目录路径，用于保存处理结果和表格
+            data_dir: Directory path containing all JSON result files
+            output_dir: Output directory path for saving processed results and tables
         """
         self.data_dir = Path(data_dir)
         self.output_dir = Path(output_dir)
         self.output_dir.mkdir(exist_ok=True)
 
-        # 定义实验配置参数
-        self.datasets = ['stackexchange', 'dclm-privacy', 'wiki-fact']  # 三种数据集
-        self.model_scales = ['1B', '7B', '13B', '32B']  # 四种模型规模
-        self.generation_lengths = [8, 16, 128]  # 三种生成长度
-        self.model_types = ['base', 'sft']  # 两种模型类型：基础模型和指令微调模型
+        # Define experimental configuration parameters
+        self.datasets = ['stackexchange', 'dclm-privacy', 'wiki-fact']  # three datasets
+        self.model_scales = ['1B', '7B', '13B', '32B']  # four model scales
+        self.generation_lengths = [8, 16, 128]  # three generation lengths
+        self.model_types = ['base', 'sft']  # two model types: base model and instruction fine-tuned model
 
-        # 定义需要分析的特征指标
+        # Define feature metrics to analyze
         self.features = [
-            'politeness_ratio',  # 礼貌程度比率
-            'structured_ratio',  # 结构化程度比率
-            'question_ratio',  # 问句比率
-            'avg_certainty_density',  # 平均确定性密度
-            'avg_uncertainty_density',  # 平均不确定性密度
-            'avg_transition_density'  # 平均转换密度
+            'politeness_ratio',  # politeness ratio
+            'structured_ratio',  # structured ratio
+            'question_ratio',  # question ratio
+            'avg_certainty_density',  # average certainty density
+            'avg_uncertainty_density',  # average uncertainty density
+            'avg_transition_density'  # average transition density
         ]
 
-        # 特征名称映射，用于生成更友好的表格标题
+        # Feature name mapping for more user-friendly table titles
         self.feature_names = {
             'politeness_ratio': 'Politeness',
             'structured_ratio': 'Structure',
@@ -58,13 +59,13 @@ class MemorizationAnalyzer:
 
     def load_json_file(self, filepath: Path) -> Dict[str, Any]:
         """
-        加载JSON文件并返回数据
+        Load a JSON file and return the parsed data.
 
         Args:
-            filepath: JSON文件路径
+            filepath: Path to the JSON file
 
         Returns:
-            解析后的JSON数据字典，如果文件不存在或解析失败则返回空字典
+            Parsed JSON dict; returns an empty dict if the file does not exist or parsing fails
         """
         try:
             with open(filepath, 'r', encoding='utf-8') as f:
@@ -75,39 +76,39 @@ class MemorizationAnalyzer:
 
     def extract_features_from_data(self, data: Dict[str, Any]) -> Dict[str, float]:
         """
-        从JSON数据中提取所需的特征值
+        Extract required feature values from the JSON data.
 
         Args:
-            data: 从JSON文件加载的原始数据
+            data: Raw data loaded from the JSON file
 
         Returns:
-            包含所有特征值的字典，键为特征名，值为对应的数值
+            Dict of extracted features; keys are feature names and values are numeric values
         """
         features = {}
 
         try:
-            # 提取礼貌程度分析结果
+            # Extract politeness analysis results
             if 'politeness_analysis' in data:
                 for model_type in self.model_types:
                     if model_type in data['politeness_analysis']:
                         features[f'{model_type}_politeness_ratio'] = data['politeness_analysis'][model_type].get(
                             'politeness_ratio', 0.0)
 
-            # 提取结构化分析结果
+            # Extract structure analysis results
             if 'structure_analysis' in data:
                 for model_type in self.model_types:
                     if model_type in data['structure_analysis']:
                         features[f'{model_type}_structured_ratio'] = data['structure_analysis'][model_type].get(
                             'structured_ratio', 0.0)
 
-            # 提取问句分析结果
+            # Extract question analysis results
             if 'question_analysis' in data:
                 for model_type in self.model_types:
                     if model_type in data['question_analysis']:
                         features[f'{model_type}_question_ratio'] = data['question_analysis'][model_type].get(
                             'question_ratio', 0.0)
 
-            # 提取确定性分析结果
+            # Extract certainty analysis results
             if 'certainty_analysis' in data:
                 for model_type in self.model_types:
                     if model_type in data['certainty_analysis']:
@@ -126,30 +127,30 @@ class MemorizationAnalyzer:
 
     def collect_all_data(self) -> pd.DataFrame:
         """
-        收集所有实验数据并整理成DataFrame格式
+        Collect all experimental data and organize it into a DataFrame.
 
         Returns:
-            包含所有实验条件和对应特征值的完整数据表
+            Full data table containing all experimental conditions and corresponding feature values
         """
         all_data = []
 
-        # 遍历所有可能的实验配置组合
+        # Iterate over all possible experimental configuration combinations
         for dataset in self.datasets:
             for scale in self.model_scales:
                 for length in self.generation_lengths:
-                    # 构造文件名模式：exp1_differences_{dataset}_{scale}_length_{length}.json
+                    # Filename pattern: exp1_differences_{dataset}_{scale}_length_{length}.json
                     filename = f"exp1_differences_{dataset}_{scale}_length_{length}.json"
                     filepath = self.data_dir / filename
 
                     if filepath.exists():
                         print(f"正在处理文件: {filename}")
 
-                        # 加载数据并提取特征
+                        # Load data and extract features
                         data = self.load_json_file(filepath)
                         features = self.extract_features_from_data(data)
 
-                        if features:  # 如果成功提取到特征
-                            # 为每个模型类型创建一行数据
+                        if features:  # if features were successfully extracted
+                            # Create one row per model type
                             for model_type in self.model_types:
                                 row_data = {
                                     'Dataset': dataset,
@@ -158,7 +159,7 @@ class MemorizationAnalyzer:
                                     'Model_Type': model_type
                                 }
 
-                                # 添加该模型类型的所有特征值
+                                # Add all feature values for this model type
                                 for feature in self.features:
                                     feature_key = f"{model_type}_{feature}"
                                     row_data[feature] = features.get(feature_key, 0.0)
@@ -169,37 +170,37 @@ class MemorizationAnalyzer:
                     else:
                         print(f"警告: 文件不存在: {filename}")
 
-        # 转换为DataFrame并返回
+        # Convert to DataFrame and return
         df = pd.DataFrame(all_data)
         print(f"\n成功收集 {len(df)} 行数据")
         return df
 
     def create_latex_table(self, df: pd.DataFrame, save_path: str) -> str:
         """
-        根据附件图2的样式创建LaTeX表格
+        Create a LaTeX table following the style of the attached Figure 2.
 
         Args:
-            df: 包含所有数据的DataFrame
-            save_path: 表格保存路径
+            df: DataFrame containing all data
+            save_path: Path to save the table
 
         Returns:
-            生成的LaTeX表格字符串
+            Generated LaTeX table as a string
         """
-        # 创建表格结构：模型规模 x 生成长度 x 特征 x 模型类型
+        # Table structure: model scale x generation length x feature x model type
         latex_lines = []
 
-        # 表格开始
+        # Begin table
         latex_lines.append("\\begin{table}[h]")
         latex_lines.append("\\centering")
         latex_lines.append("\\caption{指令微调对模型记忆特征的影响分析}")
         latex_lines.append("\\label{tab:memorization_analysis}")
 
-        # 表格列定义：模型规模 | 生成长度 | 6个特征(base/sft各一列)
+        # Column specification: model scale | generation length | 6 features (base/sft two columns each)
         col_spec = "l|l|" + "cc|" * len(self.features)
         latex_lines.append(f"\\begin{{tabular}}{{{col_spec}}}")
         latex_lines.append("\\hline")
 
-        # 创建表头
+        # Build header
         header_line1 = "Model & L"
         header_line2 = " & "
 
@@ -215,15 +216,15 @@ class MemorizationAnalyzer:
         latex_lines.append(header_line2)
         latex_lines.append("\\hline")
 
-        # 为每个数据集创建一个表格部分
+        # Create one section per dataset
         for dataset in self.datasets:
             latex_lines.append(f"\\multicolumn{{{2 + len(self.features) * 2}}}{{c|}}{{{dataset.upper()}}} \\\\")
             latex_lines.append("\\hline")
 
-            # 获取该数据集的数据
+            # Subset data for this dataset
             dataset_df = df[df['Dataset'] == dataset]
 
-            # 按模型规模和生成长度分组
+            # Group by model scale and generation length
             for scale in self.model_scales:
                 scale_df = dataset_df[dataset_df['Model_Scale'] == scale]
                 if scale_df.empty:
@@ -235,14 +236,14 @@ class MemorizationAnalyzer:
                     if length_df.empty:
                         continue
 
-                    # 构建数据行
+                    # Build data row
                     if first_row_for_scale:
                         row = f"{scale} & {length}"
                         first_row_for_scale = False
                     else:
                         row = f" & {length}"
 
-                    # 为每个特征添加base和sft的值
+                    # Add base and sft values for each feature
                     for feature in self.features:
                         base_df = length_df[length_df['Model_Type'] == 'base']
                         sft_df = length_df[length_df['Model_Type'] == 'sft']
@@ -250,7 +251,7 @@ class MemorizationAnalyzer:
                         base_val = base_df[feature].iloc[0] if not base_df.empty else 0.0
                         sft_val = sft_df[feature].iloc[0] if not sft_df.empty else 0.0
 
-                        # 格式化数值显示（保留3位小数）
+                        # Format numeric values (3 decimal places)
                         row += f" & {base_val:.3f} & {sft_val:.3f}"
 
                     row += " \\\\"
@@ -258,13 +259,13 @@ class MemorizationAnalyzer:
 
             latex_lines.append("\\hline")
 
-        # 表格结束
+        # End table
         latex_lines.append("\\end{tabular}")
         latex_lines.append("\\end{table}")
 
         latex_content = "\n".join(latex_lines)
 
-        # 保存LaTeX文件
+        # Save LaTeX file
         with open(save_path, 'w', encoding='utf-8') as f:
             f.write(latex_content)
 
@@ -272,10 +273,10 @@ class MemorizationAnalyzer:
 
     def print_data_summary(self, df: pd.DataFrame):
         """
-        打印数据摘要信息，用于验证数据收集的完整性
+        Print a data summary for validating completeness of the collected data.
 
         Args:
-            df: 包含所有数据的DataFrame
+            df: DataFrame containing all data
         """
         print("\n" + "=" * 80)
         print("数据收集摘要")
@@ -307,14 +308,14 @@ class MemorizationAnalyzer:
 
     def run_analysis(self):
         """
-        执行完整的数据分析流程
-        包括数据收集、处理、表格生成和摘要输出
+        Run the full analysis pipeline:
+        data collection, processing, table generation, and summary output.
         """
         print("开始指令微调记忆影响分析...")
         print(f"数据目录: {self.data_dir}")
         print(f"输出目录: {self.output_dir}")
 
-        # 步骤1: 收集所有数据
+        # Step 1: Collect all data
         print("\n步骤1: 收集实验数据...")
         df = self.collect_all_data()
 
@@ -322,21 +323,21 @@ class MemorizationAnalyzer:
             print("错误: 未收集到任何有效数据，请检查数据目录和文件格式")
             return
 
-        # 步骤2: 保存原始数据CSV文件
+        # Step 2: Save raw data to CSV
         csv_path = self.output_dir / "memorization_analysis_data.csv"
         df.to_csv(csv_path, index=False, encoding='utf-8')
         print(f"\n原始数据已保存到: {csv_path}")
 
-        # 步骤3: 生成LaTeX表格
+        # Step 3: Generate LaTeX table
         print("\n步骤2: 生成LaTeX表格...")
         latex_path = self.output_dir / "memorization_analysis_table.tex"
         latex_content = self.create_latex_table(df, latex_path)
         print(f"LaTeX表格已保存到: {latex_path}")
 
-        # 步骤4: 打印数据摘要
+        # Step 4: Print data summary
         self.print_data_summary(df)
 
-        # 步骤5: 显示LaTeX表格内容
+        # Step 5: Display LaTeX table content
         print("\n" + "=" * 80)
         print("生成的LaTeX表格内容:")
         print("=" * 80)
@@ -347,18 +348,18 @@ class MemorizationAnalyzer:
 
 def parse_arguments():
     """
-    解析命令行参数
+    Parse command-line arguments.
 
     Returns:
-        解析后的参数对象
+        Parsed arguments object
     """
     parser = argparse.ArgumentParser(
         description='指令微调对模型记忆影响的数据分析工具',
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
-使用示例:
+Usage examples:
   python memorization_analysis.py --data_dir /path/to/results --output_dir /path/to/output
-  python memorization_analysis.py  # 使用默认路径
+  python memorization_analysis.py  # use default paths
         """
     )
 
@@ -402,22 +403,22 @@ def parse_arguments():
 
 
 def main():
-    """主函数，程序入口点"""
-    # 解析命令行参数
+    """Main function / program entry point."""
+    # Parse command-line arguments
     args = parse_arguments()
 
-    # 验证输入目录是否存在
+    # Validate that the input directory exists
     if not os.path.exists(args.data_dir):
         print(f"错误: 数据目录不存在: {args.data_dir}")
         sys.exit(1)
 
-    # 创建分析器实例
+    # Create analyzer instance
     analyzer = MemorizationAnalyzer(
         data_dir=args.data_dir,
         output_dir=args.output_dir
     )
 
-    # 如果用户指定了自定义参数，更新分析器配置
+    # If the user specified custom parameters, update analyzer configuration
     if hasattr(args, 'datasets'):
         analyzer.datasets = args.datasets
     if hasattr(args, 'model_scales'):
@@ -425,7 +426,7 @@ def main():
     if hasattr(args, 'generation_lengths'):
         analyzer.generation_lengths = args.generation_lengths
 
-    # 执行分析
+    # Run analysis
     try:
         analyzer.run_analysis()
     except KeyboardInterrupt:

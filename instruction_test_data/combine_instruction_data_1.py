@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-指令微调数据集交集提取、过滤和特征提取工具
-用于提取两个指令微调数据集的交集，并进行语言过滤、长度控制、任务分类和特征提取
+Instruction fine-tuning dataset intersection extraction, filtering, and feature extraction tool
+Used to extract the intersection of two instruction fine-tuning datasets, and perform language filtering,
+length constraints, task categorization, and feature extraction
 """
 
 import argparse
@@ -20,28 +21,28 @@ from collections import Counter, defaultdict
 
 def detect_language(text: str) -> str:
     """
-    检测文本语言（简单的基于字符的方法）
+    Detect the language of the text (a simple character-based approach)
 
     Args:
-        text: 输入文本
+        text: Input text
 
     Returns:
-        语言代码：'en' 表示英文，'other' 表示其他语言
+        Language code: 'en' for English, 'other' for other languages
     """
-    # 统计英文字符比例
+    # Compute the proportion of English characters
     if not text or len(text.strip()) == 0:
         return 'other'
 
-    # 移除空白字符
+    # Remove whitespace characters
     text_no_space = text.replace(' ', '').replace('\n', '').replace('\t', '')
     if len(text_no_space) == 0:
         return 'other'
 
-    # 统计ASCII字符（主要是英文）的比例
+    # Compute the ratio of ASCII characters (primarily English)
     ascii_count = sum(1 for c in text if ord(c) < 128)
     ascii_ratio = ascii_count / len(text)
 
-    # 如果ASCII字符超过80%，认为是英文
+    # If ASCII characters exceed 80%, treat as English
     if ascii_ratio > 0.8:
         return 'en'
     else:
@@ -50,53 +51,53 @@ def detect_language(text: str) -> str:
 
 def simple_tokenize(text: str) -> List[str]:
     """
-    简单的分词函数，按空格和标点分割
+    A simple tokenization function that splits by spaces and punctuation
 
     Args:
-        text: 输入文本
+        text: Input text
 
     Returns:
-        token列表
+        List of tokens
     """
-    # 简单的分词：按空格分割
+    # Simple tokenization: split by whitespace
     return text.split()
 
 
 def count_tokens(text: str) -> int:
     """
-    统计文本的token数量
+    Count the number of tokens in the text
 
     Args:
-        text: 输入文本
+        text: Input text
 
     Returns:
-        token数量
+        Number of tokens
     """
     return len(simple_tokenize(text))
 
 
 def extract_instruction_response(item: Dict) -> Tuple[str, str]:
     """
-    从数据项中提取instruction和response
+    Extract instruction and response from a data item
 
     Args:
-        item: 数据项字典
+        item: Data item dictionary
 
     Returns:
-        (instruction, response) 元组
+        (instruction, response) tuple
     """
     instruction = ""
     response = ""
 
     if 'messages' in item:
-        # 处理messages格式
+        # Handle the messages format
         for msg in item['messages']:
             if msg['role'] == 'user':
                 instruction += msg['content'] + " "
             elif msg['role'] == 'assistant':
                 response += msg['content'] + " "
     else:
-        # 处理直接格式
+        # Handle the direct format
         instruction = item.get("instruction", "")
         response = item.get("response", "")
 
@@ -105,31 +106,31 @@ def extract_instruction_response(item: Dict) -> Tuple[str, str]:
 
 def classify_task(instruction: str, response: str) -> str:
     """
-    对任务进行分类
+    Classify the task type
 
     Args:
-        instruction: 指令文本
-        response: 回答文本
+        instruction: Instruction text
+        response: Response text
 
     Returns:
-        任务类别标签
+        Task category label
 
-    任务类别包括：
-    - question_answering: 问答任务
-    - generation: 生成任务
-    - explanation: 解释任务
-    - translation: 翻译任务
-    - summarization: 总结任务
-    - coding: 编程任务
-    - analysis: 分析任务
-    - math: 数学任务
-    - classification: 分类任务
-    - other: 其他任务
+    Task categories include:
+    - question_answering: QA tasks
+    - generation: Generation tasks
+    - explanation: Explanation tasks
+    - translation: Translation tasks
+    - summarization: Summarization tasks
+    - coding: Coding tasks
+    - analysis: Analysis tasks
+    - math: Math tasks
+    - classification: Classification tasks
+    - other: Other tasks
     """
     instruction_lower = instruction.lower()
     response_lower = response.lower()
 
-    # 定义任务关键词
+    # Define task keywords
     task_keywords = {
         'question_answering': ['what', 'why', 'how', 'when', 'where', 'who', 'which', '?'],
         'generation': ['write', 'create', 'generate', 'make', 'produce', 'compose', 'draft'],
@@ -142,14 +143,14 @@ def classify_task(instruction: str, response: str) -> str:
         'classification': ['classify', 'categorize', 'identify', 'determine', 'label']
     }
 
-    # 统计每个类别的匹配分数
+    # Compute matching scores for each category
     scores = defaultdict(int)
     for category, keywords in task_keywords.items():
         for keyword in keywords:
             if keyword in instruction_lower:
                 scores[category] += 1
 
-    # 返回得分最高的类别
+    # Return the category with the highest score
     if scores:
         return max(scores.items(), key=lambda x: x[1])[0]
     else:
@@ -158,36 +159,36 @@ def classify_task(instruction: str, response: str) -> str:
 
 def extract_instruction_features(instruction: str, instruction_verbs: Set[str]) -> Dict[str, Any]:
     """
-    提取指令的关键特征
+    Extract key features from an instruction
 
     Args:
-        instruction: 指令文本
-        instruction_verbs: 指令动词集合
+        instruction: Instruction text
+        instruction_verbs: Set of instruction verbs
 
     Returns:
-        特征字典，包含：
-        - start_words: 开头词列表（前3个词）
-        - instruction_verbs_found: 找到的指令动词列表
-        - has_question: 是否包含疑问词
-        - sentence_count: 句子数量
-        - avg_word_length: 平均词长
+        Feature dictionary including:
+        - start_words: Leading words (first 3 words)
+        - instruction_verbs_found: Instruction verbs found
+        - has_question: Whether it contains question words
+        - sentence_count: Number of sentences
+        - avg_word_length: Average word length
     """
     tokens = simple_tokenize(instruction.lower())
 
-    # 提取开头词（前3个）
+    # Extract leading words (first 3)
     start_words = tokens[:3] if len(tokens) >= 3 else tokens
 
-    # 查找指令动词
+    # Find instruction verbs
     verbs_found = [word for word in tokens if word in instruction_verbs]
 
-    # 检测疑问词
+    # Detect question words
     question_words = ['what', 'why', 'how', 'when', 'where', 'who', 'which']
     has_question = any(qw in tokens for qw in question_words) or '?' in instruction
 
-    # 统计句子数量（简单按句号、问号、感叹号分割）
+    # Count sentences (simple split by period, question mark, exclamation mark)
     sentence_count = len(re.split(r'[.!?]+', instruction))
 
-    # 计算平均词长
+    # Compute average word length
     avg_word_length = np.mean([len(word) for word in tokens]) if tokens else 0
 
     return {
@@ -201,40 +202,40 @@ def extract_instruction_features(instruction: str, instruction_verbs: Set[str]) 
 
 def extract_response_features(response: str) -> Dict[str, Any]:
     """
-    提取回答的关键特征
+    Extract key features from a response
 
     Args:
-        response: 回答文本
+        response: Response text
 
     Returns:
-        特征字典，包含：
-        - start_phrase: 开头短语（前5个词）
-        - has_code_block: 是否包含代码块
-        - has_list: 是否包含列表
-        - has_steps: 是否包含步骤说明
-        - paragraph_count: 段落数量
-        - formality_score: 正式度评分（0-1）
+        Feature dictionary including:
+        - start_phrase: Leading phrase (first 5 words)
+        - has_code_block: Whether it contains a code block
+        - has_list: Whether it contains a list
+        - has_steps: Whether it contains step-by-step instructions
+        - paragraph_count: Number of paragraphs
+        - formality_score: Formality score (0-1)
     """
     tokens = simple_tokenize(response.lower())
 
-    # 提取开头短语（前5个词）
+    # Extract leading phrase (first 5 words)
     start_phrase = ' '.join(tokens[:5]) if len(tokens) >= 5 else ' '.join(tokens)
 
-    # 检测代码块
+    # Detect code blocks
     has_code_block = '```' in response or bool(re.search(r'`[^`]+`', response))
 
-    # 检测列表（编号或项目符号）
+    # Detect lists (numbered or bulleted)
     has_list = bool(re.search(r'^\d+\.', response, re.MULTILINE)) or \
                bool(re.search(r'^[\*\-\•]', response, re.MULTILINE))
 
-    # 检测步骤说明
+    # Detect step-by-step patterns
     has_steps = bool(re.search(r'step \d|first.*then|next.*step', response.lower()))
 
-    # 统计段落数量
+    # Count paragraphs
     paragraphs = [p for p in response.split('\n\n') if p.strip()]
     paragraph_count = len(paragraphs)
 
-    # 简单的正式度评分：基于正式词汇的使用
+    # Simple formality score: based on the usage of formal words
     formal_words = ['however', 'therefore', 'furthermore', 'moreover', 'consequently',
                     'nevertheless', 'thus', 'hence', 'accordingly']
     formality_score = sum(1 for word in formal_words if word in response.lower()) / len(formal_words)
@@ -251,20 +252,20 @@ def extract_response_features(response: str) -> Dict[str, Any]:
 
 def load_parquet_files(directory: str) -> pd.DataFrame:
     """
-    加载目录下所有的parquet文件并合并
+    Load and merge all parquet files under a directory
 
     Args:
-        directory: parquet文件所在目录
+        directory: Directory containing parquet files
 
     Returns:
-        合并后的DataFrame
+        Merged DataFrame
     """
     directory_path = Path(directory)
 
     if not directory_path.exists():
         raise FileNotFoundError(f"目录不存在: {directory}")
 
-    # 查找所有parquet文件
+    # Find all parquet files
     parquet_files = sorted(directory_path.glob("*.parquet"))
 
     if not parquet_files:
@@ -272,13 +273,13 @@ def load_parquet_files(directory: str) -> pd.DataFrame:
 
     print(f"在 {directory} 中找到 {len(parquet_files)} 个parquet文件")
 
-    # 逐个读取并合并
+    # Read and merge one by one
     dataframes = []
     for file_path in tqdm(parquet_files, desc=f"加载 {directory_path.name}"):
         df = pd.read_parquet(file_path)
         dataframes.append(df)
 
-    # 合并所有DataFrame
+    # Merge all DataFrames
     merged_df = pd.concat(dataframes, ignore_index=True)
     print(f"合并后共有 {len(merged_df)} 条数据")
 
@@ -287,28 +288,28 @@ def load_parquet_files(directory: str) -> pd.DataFrame:
 
 def generate_row_hash(row: Dict[Any, Any], key_fields: List[str]) -> str:
     """
-    为数据行生成唯一的哈希值
+    Generate a unique hash for a data row
 
     Args:
-        row: 数据行（字典格式）
-        key_fields: 用于生成哈希的字段列表
+        row: Data row (as a dict)
+        key_fields: Field list used to generate the hash
 
     Returns:
-        哈希值字符串
+        Hash string
     """
-    # 提取关键字段的值
+    # Extract values of key fields
     key_values = []
     for field in key_fields:
         if field in row:
             value = row[field]
-            # 将值转换为字符串（处理列表、字典等复杂类型）
+            # Convert to string (handle complex types like list/dict)
             if isinstance(value, (list, dict)):
                 value_str = json.dumps(value, sort_keys=True, ensure_ascii=False)
             else:
                 value_str = str(value)
             key_values.append(value_str)
 
-    # 将所有关键值连接后生成哈希
+    # Concatenate all key values and generate an MD5 hash
     combined_str = "|||".join(key_values)
     hash_value = hashlib.md5(combined_str.encode('utf-8')).hexdigest()
 
@@ -318,24 +319,24 @@ def generate_row_hash(row: Dict[Any, Any], key_fields: List[str]) -> str:
 def find_intersection(df1: pd.DataFrame, df2: pd.DataFrame, key_fields: List[str],
                       use_hash: bool = True) -> pd.DataFrame:
     """
-    找出两个数据集的交集
+    Find the intersection of two datasets
 
     Args:
-        df1: 第一个数据集
-        df2: 第二个数据集
-        key_fields: 用于判断唯一性的字段
-        use_hash: 是否使用哈希进行比较
+        df1: First dataset
+        df2: Second dataset
+        key_fields: Fields used to determine uniqueness
+        use_hash: Whether to use hash-based comparison
 
     Returns:
-        交集数据的DataFrame
+        DataFrame containing the intersection
     """
     print("\n开始计算交集...")
 
     if use_hash:
-        # 使用哈希值进行比较
+        # Compare using hash values
         print("使用哈希值方法进行比较")
 
-        # 为第一个数据集生成哈希
+        # Generate hashes for dataset 1
         print("为数据集1生成哈希值...")
         hashes1 = set()
         for idx, row in tqdm(df1.iterrows(), total=len(df1), desc="数据集1哈希"):
@@ -343,7 +344,7 @@ def find_intersection(df1: pd.DataFrame, df2: pd.DataFrame, key_fields: List[str
             hash_val = generate_row_hash(row_dict, key_fields)
             hashes1.add(hash_val)
 
-        # 为第二个数据集生成哈希并查找交集
+        # Generate hashes for dataset 2 and find intersection
         print("为数据集2生成哈希值并查找交集...")
         intersection_indices = []
         for idx, row in tqdm(df2.iterrows(), total=len(df2), desc="查找交集"):
@@ -352,11 +353,11 @@ def find_intersection(df1: pd.DataFrame, df2: pd.DataFrame, key_fields: List[str
             if hash_val in hashes1:
                 intersection_indices.append(idx)
 
-        # 提取交集数据（从数据集2中）
+        # Extract intersection rows (from dataset 2)
         intersection_df = df2.loc[intersection_indices].reset_index(drop=True)
 
     else:
-        # 直接使用pandas的merge进行比较（适用于简单字段）
+        # Compare using pandas merge (suitable for simple fields)
         print("使用pandas merge方法进行比较")
         intersection_df = pd.merge(
             df1, df2,
@@ -378,57 +379,57 @@ def filter_by_language_and_length(df: pd.DataFrame,
                                   response_min_tokens: int = 200,
                                   response_max_tokens: int = 300) -> pd.DataFrame:
     """
-    根据语言和长度过滤数据
+    Filter data by language and length
 
     Args:
-        df: 输入DataFrame
-        instruction_min_tokens: 指令最小token数
-        instruction_max_tokens: 指令最大token数
-        response_min_tokens: 回答最小token数
-        response_max_tokens: 回答最大token数
+        df: Input DataFrame
+        instruction_min_tokens: Minimum instruction token count
+        instruction_max_tokens: Maximum instruction token count
+        response_min_tokens: Minimum response token count
+        response_max_tokens: Maximum response token count
 
     Returns:
-        过滤后的DataFrame，包含新增的列：
-        - instruction_text: 提取的指令文本
-        - response_text: 提取的回答文本
-        - instruction_tokens: 指令token数
-        - response_tokens: 回答token数
-        - language: 语言标识
+        Filtered DataFrame with additional columns:
+        - instruction_text: extracted instruction text
+        - response_text: extracted response text
+        - instruction_tokens: instruction token count
+        - response_tokens: response token count
+        - language: language label
     """
     print("\n开始语言和长度过滤...")
 
-    # 存储过滤结果
+    # Store filtered results
     filtered_data = []
 
     for idx, row in tqdm(df.iterrows(), total=len(df), desc="过滤数据"):
         row_dict = row.to_dict()
 
-        # 提取instruction和response
+        # Extract instruction and response
         instruction, response = extract_instruction_response(row_dict)
 
-        # 检查是否为空
+        # Check emptiness
         if not instruction or not response:
             continue
 
-        # 检查语言（必须都是英文）
+        # Language check (both must be English)
         inst_lang = detect_language(instruction)
         resp_lang = detect_language(response)
 
         if inst_lang != 'en' or resp_lang != 'en':
             continue
 
-        # 统计token数
+        # Count tokens
         inst_tokens = count_tokens(instruction)
         resp_tokens = count_tokens(response)
 
-        # 检查长度范围
+        # Check length ranges
         if not (instruction_min_tokens <= inst_tokens <= instruction_max_tokens):
             continue
         if not (response_min_tokens <= resp_tokens <= response_max_tokens):
             continue
 
-        # 检查是否有过多的重复内容（简单检查）
-        # 如果指令和回答有超过50%的重叠，可能是重复数据
+        # Check excessive repetition (simple heuristic)
+        # If instruction and response overlap by more than 50%, it may be duplicate-like data
         inst_words = set(instruction.lower().split())
         resp_words = set(response.lower().split())
         if inst_words and resp_words:
@@ -436,7 +437,7 @@ def filter_by_language_and_length(df: pd.DataFrame,
             if overlap_ratio > 0.5:
                 continue
 
-        # 添加新字段
+        # Add new fields
         row_dict['instruction_text'] = instruction
         row_dict['response_text'] = response
         row_dict['instruction_tokens'] = inst_tokens
@@ -457,18 +458,18 @@ def filter_by_language_and_length(df: pd.DataFrame,
 
 def classify_and_extract_features(df: pd.DataFrame, instruction_verbs: Set[str]) -> pd.DataFrame:
     """
-    对数据进行任务分类并提取特征
+    Classify tasks and extract features
 
     Args:
-        df: 输入DataFrame（已经包含instruction_text和response_text列）
-        instruction_verbs: 指令动词集合
+        df: Input DataFrame (already contains instruction_text and response_text)
+        instruction_verbs: Set of instruction verbs
 
     Returns:
-        添加了分类和特征列的DataFrame
+        DataFrame with added classification and feature columns
     """
     print("\n开始任务分类和特征提取...")
 
-    # 存储分类和特征
+    # Store classifications and features
     task_categories = []
     instruction_features = []
     response_features = []
@@ -477,24 +478,24 @@ def classify_and_extract_features(df: pd.DataFrame, instruction_verbs: Set[str])
         instruction = row['instruction_text']
         response = row['response_text']
 
-        # 任务分类
+        # Task classification
         task_category = classify_task(instruction, response)
         task_categories.append(task_category)
 
-        # 提取指令特征
+        # Extract instruction features
         inst_features = extract_instruction_features(instruction, instruction_verbs)
         instruction_features.append(inst_features)
 
-        # 提取回答特征
+        # Extract response features
         resp_features = extract_response_features(response)
         response_features.append(resp_features)
 
-    # 添加到DataFrame
+    # Add to DataFrame
     df['task_category'] = task_categories
     df['instruction_features'] = instruction_features
     df['response_features'] = response_features
 
-    # 打印分类统计
+    # Print classification stats
     print("\n任务类别分布：")
     category_counts = Counter(task_categories)
     for category, count in category_counts.most_common():
@@ -505,13 +506,13 @@ def classify_and_extract_features(df: pd.DataFrame, instruction_verbs: Set[str])
 
 def convert_to_serializable(obj):
     """
-    将对象转换为JSON可序列化的格式
+    Convert an object into a JSON-serializable format
 
     Args:
-        obj: 要转换的对象
+        obj: Object to convert
 
     Returns:
-        转换后的对象
+        Converted object
     """
     if isinstance(obj, np.ndarray):
         return obj.tolist()
@@ -533,60 +534,60 @@ def convert_to_serializable(obj):
 
 def save_to_jsonl(df: pd.DataFrame, output_path: str):
     """
-    将DataFrame保存为jsonl格式
+    Save a DataFrame to JSONL format
 
     Args:
-        df: 要保存的DataFrame
-        output_path: 输出文件路径
+        df: DataFrame to save
+        output_path: Output file path
     """
     print(f"\n保存数据到: {output_path}")
 
-    # 确保输出目录存在
+    # Ensure the output directory exists
     output_dir = Path(output_path).parent
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    # 逐行写入jsonl文件
+    # Write line-by-line to a jsonl file
     with open(output_path, 'w', encoding='utf-8') as f:
         for idx, row in tqdm(df.iterrows(), total=len(df), desc="保存到jsonl"):
-            # 将行转换为字典并处理不可序列化的对象
+            # Convert row to dict and handle non-serializable objects
             row_dict = row.to_dict()
             row_dict = convert_to_serializable(row_dict)
 
-            # 写入json行
+            # Write one JSON line
             json_line = json.dumps(row_dict, ensure_ascii=False)
             f.write(json_line + '\n')
 
     print(f"成功保存 {len(df)} 条数据")
 
-    # 输出文件信息
+    # Output file info
     file_size = Path(output_path).stat().st_size
     print(f"文件大小: {file_size / (1024 * 1024):.2f} MB")
 
 
 def print_sample_data(df: pd.DataFrame, n: int = 3):
     """
-    打印样例数据
+    Print sample data
 
     Args:
         df: DataFrame
-        n: 打印的样例数量
+        n: Number of samples to print
     """
     print(f"\n数据样例（前{n}条）:")
     print("=" * 80)
     for idx, row in df.head(n).iterrows():
         print(f"\n样例 {idx + 1}:")
         row_dict = row.to_dict()
-        # 转换为可序列化格式
+        # Convert to a serializable format
         row_dict = convert_to_serializable(row_dict)
         print(json.dumps(row_dict, ensure_ascii=False, indent=2))
         print("-" * 80)
 
 
 def parse_args():
-    """解析命令行参数"""
+    """Parse command-line arguments"""
     parser = argparse.ArgumentParser(description="提取、过滤和分析两个指令微调数据集的交集")
 
-    # 输入路径参数
+    # Input path arguments
     parser.add_argument("--dataset1_path", type=str,
                         default="/root/autodl-tmp/ift_memorization/data/instruction_test_data/tulu-3-sft-olmo-2-mixture",
                         help="第一个数据集的路径（包含parquet文件的目录）")
@@ -594,7 +595,7 @@ def parse_args():
                         default="/root/autodl-tmp/ift_memorization/data/instruction_test_data/tulu-3-sft-olmo-2-mixture-0225",
                         help="第二个数据集的路径（包含parquet文件的目录）")
 
-    # 输出路径参数
+    # Output path arguments
     parser.add_argument("--output_dir", type=str,
                         default="/root/autodl-tmp/ift_memorization/data/instruction_test_data",
                         help="输出目录路径")
@@ -602,13 +603,13 @@ def parse_args():
                         default="olmo_instruction_tulu3_intersection.jsonl",
                         help="输出文件名")
 
-    # 数据处理参数
+    # Data processing arguments
     parser.add_argument("--key_fields", type=str, nargs="+", default=["messages"],
                         help="用于判断数据唯一性的字段列表")
     parser.add_argument("--hash_for_comparison", action="store_true", default=True,
                         help="是否使用哈希值进行比较（适用于复杂字段）")
 
-    # 过滤参数
+    # Filtering arguments
     parser.add_argument("--instruction_min_tokens", type=int, default=80,
                         help="指令最小token数")
     parser.add_argument("--instruction_max_tokens", type=int, default=170,
@@ -622,11 +623,11 @@ def parse_args():
 
 
 def main():
-    """主函数"""
-    # 解析参数
+    """Main entry point"""
+    # Parse arguments
     args = parse_args()
 
-    # 定义指令动词集合（合并用户提供的列表）
+    # Define the instruction verb set (merge user-provided lists)
     instruct1 = [
         "translate", "explain", "summarize", "retrieve",
         "revise", 'generate', 'describe', 'classify', 'create',
@@ -642,7 +643,7 @@ def main():
         "output", "predict", "detect"
     ]
 
-    # 合并所有指令词（转为小写并去重）
+    # Merge all instruction words (lowercase + deduplicate)
     instruction_verbs = set(word.lower() for word in instruct1 + instruct2)
 
     print("=" * 80)
@@ -663,29 +664,29 @@ def main():
     print()
 
     try:
-        # 步骤1: 加载数据集1
+        # Step 1: Load dataset 1
         print("\n步骤1: 加载数据集1")
         print("-" * 80)
         df1 = load_parquet_files(args.dataset1_path)
         print(f"数据集1列名: {list(df1.columns)}")
 
-        # 步骤2: 加载数据集2
+        # Step 2: Load dataset 2
         print("\n步骤2: 加载数据集2")
         print("-" * 80)
         df2 = load_parquet_files(args.dataset2_path)
         print(f"数据集2列名: {list(df2.columns)}")
 
-        # 验证关键字段是否存在
+        # Validate whether key fields exist
         for field in args.key_fields:
             if field not in df1.columns or field not in df2.columns:
                 raise ValueError(f"关键字段 '{field}' 在某个数据集中不存在")
 
-        # 步骤3: 计算交集
+        # Step 3: Compute intersection
         print("\n步骤3: 计算交集")
         print("-" * 80)
         intersection_df = find_intersection(df1, df2, args.key_fields, args.hash_for_comparison)
 
-        # 步骤4: 语言和长度过滤
+        # Step 4: Language and length filtering
         print("\n步骤4: 语言和长度过滤")
         print("-" * 80)
         filtered_df = filter_by_language_and_length(
@@ -696,23 +697,23 @@ def main():
             response_max_tokens=args.response_max_tokens
         )
 
-        # 步骤5: 任务分类和特征提取
+        # Step 5: Task classification and feature extraction
         print("\n步骤5: 任务分类和特征提取")
         print("-" * 80)
         final_df = classify_and_extract_features(filtered_df, instruction_verbs)
 
-        # 步骤6: 打印样例数据
+        # Step 6: Print sample data
         print("\n步骤6: 数据样例")
         print("-" * 80)
         print_sample_data(final_df, n=2)
 
-        # 步骤7: 保存结果
+        # Step 7: Save results
         print("\n步骤7: 保存结果")
         print("-" * 80)
         output_path = os.path.join(args.output_dir, args.output_filename)
         save_to_jsonl(final_df, output_path)
 
-        # 保存统计信息
+        # Save statistics
         stats_path = os.path.join(args.output_dir, args.output_filename.replace('.jsonl', '_stats.json'))
         stats = {
             'total_samples': len(final_df),

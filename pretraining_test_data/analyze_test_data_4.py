@@ -1,5 +1,5 @@
 """
-对最终的测试数据进行统计分析
+Statistical analysis for the final test dataset
 """
 import json
 import os
@@ -17,13 +17,13 @@ from scipy import stats
 
 class TestDataAnalyzer:
     def __init__(self):
-        """初始化分析器"""
+        """Initialize the analyzer"""
         sns.set_style("whitegrid")
         plt.rcParams['figure.figsize'] = (12, 8)
         plt.rcParams['font.sans-serif'] = ['DejaVu Sans']
 
     def load_data(self, file_path: str) -> List[Dict]:
-        """加载数据"""
+        """Load data"""
         data = []
         with open(file_path, "r", encoding="utf-8") as f:
             for line in f:
@@ -32,11 +32,11 @@ class TestDataAnalyzer:
 
     def analyze_selection_distribution(self, data: List[Dict]) -> Dict:
         """
-        分析选择原因分布
+        Analyze selection-reason distribution
 
-        为什么分析：
-        - 了解不同类型数据的覆盖度
-        - 确保选择策略的有效性
+        Why analyze:
+        - Understand coverage across different data types
+        - Ensure the effectiveness of the selection strategy
         """
         selection_reason_counts = Counter()
         selection_scores = defaultdict(list)
@@ -51,7 +51,7 @@ class TestDataAnalyzer:
             selection_scores[reason].append(score)
             word_counts[reason].append(word_count)
 
-        # 计算每个reason的统计信息
+        # Compute statistics for each reason
         reason_stats = {}
         for reason in selection_reason_counts:
             reason_stats[reason] = {
@@ -71,11 +71,11 @@ class TestDataAnalyzer:
 
     def analyze_dataset_balance(self, data: List[Dict]) -> Dict:
         """
-        分析数据集平衡性
+        Analyze dataset balance
 
-        为什么分析：
-        - 确保不同数据源的平衡
-        - 避免数据集偏差
+        Why analyze:
+        - Ensure balance across different data sources
+        - Avoid dataset bias
         """
         dataset_counts = Counter()
         dataset_reasons = defaultdict(lambda: Counter())
@@ -90,7 +90,7 @@ class TestDataAnalyzer:
             dataset_reasons[dataset_type][reason] += 1
             dataset_scores[dataset_type].append(score)
 
-        # 转换为普通字典
+        # Convert to plain dict
         dataset_reasons_dict = {
             dataset: dict(reasons)
             for dataset, reasons in dataset_reasons.items()
@@ -104,14 +104,14 @@ class TestDataAnalyzer:
 
     def analyze_length_statistics(self, data: List[Dict]) -> Dict:
         """
-        分析长度统计
+        Analyze length statistics
 
-        为什么分析：
-        - 了解测试数据的复杂度分布
-        - 为实验设计提供参考
+        Why analyze:
+        - Understand complexity distribution of the test data
+        - Provide references for experimental design
         """
         all_word_counts = []
-        text_lengths = []  # 字符级别长度
+        text_lengths = []  # Character-level length
         dataset_word_counts = defaultdict(list)
         reason_word_counts = defaultdict(list)
 
@@ -151,11 +151,11 @@ class TestDataAnalyzer:
 
     def analyze_text_complexity(self, data: List[Dict]) -> Dict:
         """
-        分析文本复杂度（多维度）
+        Analyze text complexity (multi-dimensional)
 
-        为什么分析：
-        - 预估不同样本的记忆难度
-        - 为结果解释提供依据
+        Why analyze:
+        - Estimate memorization difficulty for different samples
+        - Provide evidence for interpreting results
         """
         complexity_metrics = []
         dataset_complexity = defaultdict(list)
@@ -169,7 +169,7 @@ class TestDataAnalyzer:
             if not text:
                 continue
 
-            # 计算多维度复杂度指标
+            # Compute multi-dimensional complexity metrics
             words = text.split()
             sentences = [s.strip() for s in re.split(r'[.!?]+', text) if s.strip()]
 
@@ -192,7 +192,7 @@ class TestDataAnalyzer:
 
             complexity_metrics.append(metrics)
 
-            # 计算综合复杂度分数
+            # Compute an overall complexity score
             complexity_score = (
                 metrics["word_diversity"] * 0.3 +
                 metrics["char_diversity"] * 0.2 +
@@ -204,7 +204,7 @@ class TestDataAnalyzer:
             dataset_complexity[dataset_type].append(complexity_score)
             reason_complexity[reason].append(complexity_score)
 
-        # 聚合统计
+        # Aggregate statistics
         aggregated = {}
         if complexity_metrics:
             for key in complexity_metrics[0].keys():
@@ -228,11 +228,11 @@ class TestDataAnalyzer:
 
     def analyze_score_distribution(self, data: List[Dict]) -> Dict:
         """
-        分析选择分数分布
+        Analyze selection-score distribution
 
-        为什么分析：
-        - 了解数据质量分布
-        - 识别高质量/低质量数据的特征
+        Why analyze:
+        - Understand the distribution of data quality
+        - Identify characteristics of high-quality / low-quality data
         """
         all_scores = []
         dataset_scores = defaultdict(list)
@@ -250,7 +250,7 @@ class TestDataAnalyzer:
             reason_scores[reason].append(score)
             score_word_correlation.append((score, word_count))
 
-        # 计算分数与词数的相关性
+        # Compute correlation between score and word count
         if len(score_word_correlation) > 1:
             scores, word_counts = zip(*score_word_correlation)
             correlation = np.corrcoef(scores, word_counts)[0, 1]
@@ -281,11 +281,11 @@ class TestDataAnalyzer:
 
     def analyze_text_features(self, data: List[Dict]) -> Dict:
         """
-        深度分析文本特征
+        In-depth analysis of text features
 
-        为什么分析：
-        - 识别不同数据类型的语言特征
-        - 为memorization难度评估提供依据
+        Why analyze:
+        - Identify linguistic characteristics across different data types
+        - Provide evidence for memorization difficulty assessment
         """
         features = {
             "instruction_indicators": defaultdict(int),
@@ -294,17 +294,17 @@ class TestDataAnalyzer:
             "special_chars": defaultdict(int)
         }
 
-        # 指令相关词汇
+        # Instruction-related words
         instruction_words = ["explain", "describe", "write", "create", "generate",
                            "please", "how", "what", "why", "can you", "tell me"]
 
-        # 事实性标记
-        factual_markers = [r'\b\d{4}\b',  # 年份
-                          r'\d+%',  # 百分比
-                          r'\$\d+',  # 货币
-                          r'\b[A-Z][a-z]+\s+[A-Z][a-z]+\b']  # 专有名词
+        # Factual markers
+        factual_markers = [r'\b\d{4}\b',  # Year
+                          r'\d+%',  # Percentage
+                          r'\$\d+',  # Currency
+                          r'\b[A-Z][a-z]+\s+[A-Z][a-z]+\b']  # Proper nouns
 
-        # 问题模式
+        # Question patterns
         question_patterns = [r'\?$', r'^What ', r'^How ', r'^Why ', r'^When ', r'^Where ']
 
         for item in data:
@@ -312,25 +312,25 @@ class TestDataAnalyzer:
             text_lower = text.lower()
             reason = item.get("selection_reason", "unknown")
 
-            # 检查指令词
+            # Check instruction words
             for word in instruction_words:
                 if word in text_lower:
                     features["instruction_indicators"][reason] += 1
                     break
 
-            # 检查事实性标记
+            # Check factual markers
             for pattern in factual_markers:
                 if re.search(pattern, text):
                     features["factual_indicators"][reason] += 1
                     break
 
-            # 检查问题模式
+            # Check question patterns
             for pattern in question_patterns:
                 if re.search(pattern, text):
                     features["question_patterns"][reason] += 1
                     break
 
-            # 统计特殊字符
+            # Count special characters
             features["special_chars"][reason] += sum(1 for c in text if not c.isalnum() and not c.isspace())
 
         return {
@@ -342,11 +342,11 @@ class TestDataAnalyzer:
 
     def analyze_cross_dataset_comparison(self, data: List[Dict]) -> Dict:
         """
-        跨数据集比较分析
+        Cross-dataset comparative analysis
 
-        为什么分析：
-        - 识别不同数据集的差异
-        - 为实验设计提供参考
+        Why analyze:
+        - Identify differences across datasets
+        - Provide references for experimental design
         """
         dataset_metrics = defaultdict(lambda: {
             "word_counts": [],
@@ -365,13 +365,13 @@ class TestDataAnalyzer:
             dataset_metrics[dataset_type]["scores"].append(score)
             dataset_metrics[dataset_type]["text_lengths"].append(len(text))
 
-            # 简化的复杂度计算
+            # Simplified complexity computation
             words = text.split()
             if words:
                 complexity = len(set(words)) / len(words)
                 dataset_metrics[dataset_type]["complexity"].append(complexity)
 
-        # 计算每个数据集的统计摘要
+        # Compute summary statistics for each dataset
         comparison = {}
         for dataset, metrics in dataset_metrics.items():
             comparison[dataset] = {
@@ -385,15 +385,15 @@ class TestDataAnalyzer:
         return comparison
 
     def plot_analysis_results(self, analysis_results: Dict, output_dir: str, dataset_name: str):
-        """绘制分析结果图表"""
+        """Plot analysis result figures"""
         os.makedirs(output_dir, exist_ok=True)
 
-        # 创建多个图表文件
+        # Create multiple figure files
 
-        # 图表1: 选择原因分布
+        # Figure 1: Selection-reason distributions
         fig, axes = plt.subplots(2, 2, figsize=(15, 12))
 
-        # 1.1 选择原因计数
+        # 1.1 Selection-reason counts
         ax = axes[0, 0]
         reason_counts = analysis_results["selection_distribution"]["selection_reason_counts"]
         if reason_counts:
@@ -403,7 +403,7 @@ class TestDataAnalyzer:
             ax.set_title("Selection Reason Distribution")
             ax.set_ylabel("Count")
 
-        # 1.2 数据集分布
+        # 1.2 Dataset distribution
         ax = axes[0, 1]
         dataset_counts = analysis_results["dataset_balance"]["dataset_counts"]
         if dataset_counts:
@@ -412,7 +412,7 @@ class TestDataAnalyzer:
                   autopct='%1.1f%%', colors=colors)
             ax.set_title("Dataset Distribution")
 
-        # 1.3 词数分布
+        # 1.3 Word-count distribution
         ax = axes[1, 0]
         word_counts = analysis_results["length_statistics"]["all_word_counts"]
         if word_counts:
@@ -424,7 +424,7 @@ class TestDataAnalyzer:
                       label=f'Mean: {np.mean(word_counts):.1f}')
             ax.legend()
 
-        # 1.4 分数分布
+        # 1.4 Score distribution
         ax = axes[1, 1]
         scores = analysis_results["score_distribution"]["all_scores"]
         if scores:
@@ -440,12 +440,12 @@ class TestDataAnalyzer:
         plt.savefig(os.path.join(output_dir, f"basic_distribution_{dataset_name}.png"), dpi=300)
         plt.close()
 
-        # 图表2: 复杂度分析
+        # Figure 2: Complexity analysis
         fig, axes = plt.subplots(2, 2, figsize=(15, 12))
 
         complexity_data = analysis_results["text_complexity"]["all_metrics"]
         if complexity_data:
-            # 2.1 词汇多样性
+            # 2.1 Word diversity
             ax = axes[0, 0]
             word_diversity = [m["word_diversity"] for m in complexity_data]
             ax.hist(word_diversity, bins=30, edgecolor='black', alpha=0.7)
@@ -453,7 +453,7 @@ class TestDataAnalyzer:
             ax.set_xlabel("Word Diversity")
             ax.set_ylabel("Frequency")
 
-            # 2.2 平均词长
+            # 2.2 Average word length
             ax = axes[0, 1]
             avg_word_length = [m["avg_word_length"] for m in complexity_data]
             ax.hist(avg_word_length, bins=30, edgecolor='black', alpha=0.7, color='orange')
@@ -461,7 +461,7 @@ class TestDataAnalyzer:
             ax.set_xlabel("Average Word Length")
             ax.set_ylabel("Frequency")
 
-            # 2.3 平均句长
+            # 2.3 Average sentence length
             ax = axes[1, 0]
             avg_sentence_length = [m["avg_sentence_length"] for m in complexity_data]
             ax.hist(avg_sentence_length, bins=30, edgecolor='black', alpha=0.7, color='purple')
@@ -469,7 +469,7 @@ class TestDataAnalyzer:
             ax.set_xlabel("Average Sentence Length (words)")
             ax.set_ylabel("Frequency")
 
-            # 2.4 综合复杂度分数
+            # 2.4 Overall complexity score
             ax = axes[1, 1]
             complexity_scores = [m["complexity_score"] for m in complexity_data]
             ax.hist(complexity_scores, bins=30, edgecolor='black', alpha=0.7, color='red')
@@ -481,10 +481,10 @@ class TestDataAnalyzer:
         plt.savefig(os.path.join(output_dir, f"complexity_analysis_{dataset_name}.png"), dpi=300)
         plt.close()
 
-        # 图表3: 跨维度比较
+        # Figure 3: Cross-dimension comparison
         fig, axes = plt.subplots(2, 2, figsize=(15, 12))
 
-        # 3.1 不同reason的词数箱线图
+        # 3.1 Boxplot of word counts by reason
         ax = axes[0, 0]
         reason_word_data = analysis_results["selection_distribution"]["all_word_counts"]
         if reason_word_data:
@@ -496,7 +496,7 @@ class TestDataAnalyzer:
                 ax.set_title("Word Count by Selection Reason")
                 ax.set_ylabel("Word Count")
 
-        # 3.2 不同reason的分数箱线图
+        # 3.2 Boxplot of scores by reason
         ax = axes[0, 1]
         reason_score_data = analysis_results["selection_distribution"]["all_scores"]
         if reason_score_data:
@@ -508,7 +508,7 @@ class TestDataAnalyzer:
                 ax.set_title("Selection Score by Reason")
                 ax.set_ylabel("Score")
 
-        # 3.3 数据集-原因热力图
+        # 3.3 Dataset-reason heatmap
         ax = axes[1, 0]
         dataset_reasons = analysis_results["dataset_balance"]["dataset_reasons"]
         if dataset_reasons:
@@ -534,7 +534,7 @@ class TestDataAnalyzer:
                 ax.set_title("Dataset-Reason Heatmap")
                 plt.colorbar(im, ax=ax)
 
-        # 3.4 分数与词数相关性散点图
+        # 3.4 Scatter: score vs word count correlation
         ax = axes[1, 1]
         scores = analysis_results["score_distribution"]["all_scores"]
         word_counts = analysis_results["length_statistics"]["all_word_counts"]
@@ -544,7 +544,7 @@ class TestDataAnalyzer:
             ax.set_xlabel("Word Count")
             ax.set_ylabel("Selection Score")
 
-            # 添加趋势线
+            # Add trend line
             if len(word_counts) > 1:
                 z = np.polyfit(word_counts, scores, 1)
                 p = np.poly1d(z)
@@ -555,26 +555,26 @@ class TestDataAnalyzer:
         plt.close()
 
     def generate_report(self, analysis_results: Dict, output_path: str, dataset_name: str):
-        """生成详细的分析报告"""
+        """Generate a detailed analysis report"""
         report = []
         report.append(f"# Memorization测试数据分析报告 - {dataset_name}\n\n")
 
-        # 1. 基本统计
+        # 1. Basic statistics
         report.append("## 1. 基本统计\n\n")
 
-        # 1.1 样本数量
+        # 1.1 Number of samples
         reason_counts = analysis_results["selection_distribution"]["selection_reason_counts"]
         total_samples = sum(reason_counts.values())
         report.append(f"- **总样本数**: {total_samples}\n\n")
 
-        # 1.2 选择原因分布
+        # 1.2 Selection reason distribution
         report.append("### 1.1 选择原因分布\n\n")
         for reason, count in sorted(reason_counts.items(), key=lambda x: x[1], reverse=True):
             percentage = (count / total_samples * 100) if total_samples > 0 else 0
             report.append(f"- `{reason}`: {count} ({percentage:.1f}%)\n")
         report.append("\n")
 
-        # 1.3 数据集分布
+        # 1.3 Dataset distribution
         report.append("### 1.2 数据集分布\n\n")
         dataset_counts = analysis_results["dataset_balance"]["dataset_counts"]
         for dataset, count in sorted(dataset_counts.items(), key=lambda x: x[1], reverse=True):
@@ -582,7 +582,7 @@ class TestDataAnalyzer:
             report.append(f"- `{dataset}`: {count} ({percentage:.1f}%)\n")
         report.append("\n")
 
-        # 2. 长度统计
+        # 2. Length statistics
         report.append("## 2. 长度统计\n\n")
 
         word_stats = analysis_results["length_statistics"]["word_count_stats"]
@@ -595,7 +595,7 @@ class TestDataAnalyzer:
             report.append(f"- 四分位数: Q25={word_stats['q25']:.1f}, Q75={word_stats['q75']:.1f}\n")
             report.append(f"- 95百分位: {word_stats['q95']:.1f}\n\n")
 
-        # 2.2 不同数据集的长度
+        # 2.2 Length by dataset
         report.append("### 2.2 各数据集词数统计\n\n")
         dataset_word_stats = analysis_results["length_statistics"]["dataset_word_stats"]
         for dataset, stats in dataset_word_stats.items():
@@ -604,7 +604,7 @@ class TestDataAnalyzer:
                 report.append(f"  - 平均: {stats['mean']:.1f} ± {stats['std']:.1f}\n")
                 report.append(f"  - 范围: [{stats['min']:.0f}, {stats['max']:.0f}]\n\n")
 
-        # 3. 分数分析
+        # 3. Score analysis
         report.append("## 3. 选择分数分析\n\n")
 
         score_stats = analysis_results["score_distribution"]["overall_score_stats"]
@@ -615,7 +615,7 @@ class TestDataAnalyzer:
             report.append(f"- 标准差: {score_stats['std']:.2f}\n")
             report.append(f"- 范围: [{score_stats['min']:.2f}, {score_stats['max']:.2f}]\n\n")
 
-        # 3.2 各选择原因的分数
+        # 3.2 Scores by selection reason
         report.append("### 3.2 各选择原因的分数统计\n\n")
         reason_score_stats = analysis_results["score_distribution"]["reason_score_stats"]
         for reason, stats in sorted(reason_score_stats.items(), key=lambda x: x[1].get('mean', 0), reverse=True):
@@ -624,7 +624,7 @@ class TestDataAnalyzer:
                 report.append(f"  - 平均: {stats['mean']:.2f} ± {stats['std']:.2f}\n")
                 report.append(f"  - 范围: [{stats['min']:.2f}, {stats['max']:.2f}]\n\n")
 
-        # 3.3 分数与词数相关性
+        # 3.3 Correlation between score and word count
         correlation = analysis_results["score_distribution"]["score_word_correlation"]
         report.append("### 3.3 分数与词数相关性\n\n")
         report.append(f"- Pearson相关系数: {correlation:.3f}\n")
@@ -635,7 +635,7 @@ class TestDataAnalyzer:
         else:
             report.append("  - 解释: 强相关\n\n")
 
-        # 4. 文本复杂度分析
+        # 4. Text complexity analysis
         report.append("## 4. 文本复杂度分析\n\n")
 
         complexity = analysis_results["text_complexity"]["overall_complexity"]
@@ -657,14 +657,14 @@ class TestDataAnalyzer:
                     report.append(f"  - 平均: {stats['mean']:.3f} ± {stats['std']:.3f}\n")
                     report.append(f"  - 范围: [{stats['min']:.3f}, {stats['max']:.3f}]\n\n")
 
-        # 4.2 各数据集的复杂度
+        # 4.2 Complexity by dataset
         report.append("### 4.2 各数据集复杂度比较\n\n")
         dataset_complexity = analysis_results["text_complexity"]["dataset_complexity"]
         for dataset, stats in sorted(dataset_complexity.items(), key=lambda x: x[1]['mean'], reverse=True):
             report.append(f"**{dataset}**:\n")
             report.append(f"  - 平均复杂度: {stats['mean']:.3f} ± {stats['std']:.3f}\n\n")
 
-        # 5. 文本特征分析
+        # 5. Text feature analysis
         report.append("## 5. 文本特征分析\n\n")
 
         text_features = analysis_results["text_features"]
@@ -683,12 +683,12 @@ class TestDataAnalyzer:
                 report.append(f"- `{reason}`: {count} 个样本包含事实性标记\n")
             report.append("\n")
 
-        # 6. 跨数据集比较
+        # 6. Cross-dataset comparison
         report.append("## 6. 跨数据集比较\n\n")
 
         cross_comparison = analysis_results["cross_comparison"]
         if cross_comparison:
-            # 创建比较表格
+            # Create comparison table
             report.append("| 数据集 | 样本数 | 平均词数 | 平均分数 | 平均复杂度 | 平均文本长度 |\n")
             report.append("|--------|--------|----------|----------|------------|-------------|\n")
 
@@ -701,10 +701,10 @@ class TestDataAnalyzer:
                             f"{metrics['avg_text_length']:.1f} |\n")
             report.append("\n")
 
-        # 7. 数据质量评估
+        # 7. Data quality assessment
         report.append("## 7. 数据质量评估\n\n")
 
-        # 7.1 覆盖度评估
+        # 7.1 Coverage assessment
         report.append("### 7.1 覆盖度评估\n\n")
         num_datasets = len(dataset_counts)
         num_reasons = len(reason_counts)
@@ -712,7 +712,7 @@ class TestDataAnalyzer:
         report.append(f"- 选择原因类型数: {num_reasons}\n")
         report.append(f"- 总样本数: {total_samples}\n\n")
 
-        # 7.2 平衡性评估
+        # 7.2 Balance assessment
         report.append("### 7.2 平衡性评估\n\n")
         reason_values = list(reason_counts.values())
         if reason_values:
@@ -730,12 +730,12 @@ class TestDataAnalyzer:
             else:
                 report.append("  - 评价: 数据集存在明显不平衡\n\n")
 
-        # 8. 建议和结论
+        # 8. Recommendations and conclusions
         report.append("## 8. 建议和结论\n\n")
 
         report.append("### 8.1 数据特点总结\n\n")
 
-        # 根据分析结果给出建议
+        # Provide recommendations based on results
         if word_stats:
             if word_stats['std'] / word_stats['mean'] > 0.5:
                 report.append("- 词数分布较为分散，样本长度差异较大\n")
@@ -754,7 +754,7 @@ class TestDataAnalyzer:
         report.append("- 建议考虑文本长度作为控制变量\n")
         report.append("- 建议关注复杂度与memorization效果的关系\n")
 
-        # 保存报告
+        # Save report
         with open(output_path, "w", encoding="utf-8") as f:
             f.writelines(report)
 
@@ -769,9 +769,9 @@ def main():
     analyzer = TestDataAnalyzer()
     os.makedirs(args.output_dir, exist_ok=True)
 
-    # 处理每个数据集
+    # Process each dataset
     for dataset_name in args.datasets:
-        # 根据新的文件命名规则查找文件
+        # Find the file according to the new naming convention
         suffix_map = {
             "stackexchange": "instruction",
             "wiki": "fact",
@@ -792,7 +792,7 @@ def main():
         data = analyzer.load_data(test_path)
         print(f"加载了 {len(data)} 个样本")
 
-        # 执行各项分析
+        # Run analyses
         print("执行分析...")
         analysis_results = {
             "selection_distribution": analyzer.analyze_selection_distribution(data),
@@ -804,7 +804,7 @@ def main():
             "cross_comparison": analyzer.analyze_cross_dataset_comparison(data)
         }
 
-        # 打印摘要
+        # Print summary
         print(f"\n分析摘要:")
         print(f"- 总样本数: {len(data)}")
         print(f"- 选择原因类型: {list(analysis_results['selection_distribution']['selection_reason_counts'].keys())}")
@@ -818,25 +818,25 @@ def main():
         if score_stats:
             print(f"- 平均分数: {score_stats['mean']:.2f} ± {score_stats['std']:.2f}")
 
-        # 生成可视化
+        # Generate visualizations
         print("\n生成可视化图表...")
         analyzer.plot_analysis_results(analysis_results, args.output_dir, dataset_name)
 
-        # 生成报告
+        # Generate report
         print("生成分析报告...")
         report_path = os.path.join(args.output_dir, f"analysis_report_{dataset_name}.md")
         analyzer.generate_report(analysis_results, report_path, dataset_name)
 
-        # 保存详细的分析结果
+        # Save detailed analysis results
         json_path = os.path.join(args.output_dir, f"analysis_results_{dataset_name}.json")
 
-        # 清理不可序列化的数据（移除大型列表，只保留统计信息）
+        # Clean non-serializable data (remove large lists, keep only summary stats)
         clean_results = {}
         for key, value in analysis_results.items():
             if isinstance(value, dict):
                 clean_value = {}
                 for k, v in value.items():
-                    # 跳过大型列表数据
+                    # Skip large list-like data
                     if k in ['all_metrics', 'all_word_counts', 'all_text_lengths',
                             'all_scores', 'score_bins']:
                         continue

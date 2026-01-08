@@ -1,12 +1,12 @@
 """
-Build memorization test data (memory-optimized version)
-Use streaming processing to avoid out-of-memory issues
+Build memorization test data (memory-optimized version + deduplication)
+Use streaming processing to avoid OOM, and add N-gram deduplication to prevent data leakage
 """
 import json
 import os
 import re
 import random
-from typing import Dict, Optional, Iterator
+from typing import Dict, Optional, Set, List
 import argparse
 from tqdm import tqdm
 
@@ -47,12 +47,74 @@ class MemorizationTestBuilder:
             "i'm looking for", "i would like", "let me know"
         ]
 
+        # Store N-grams from the SFT dataset for deduplication
+        self.sft_ngrams: Set[str] = set()
+        self.ngram_size = 13  # Use 13-gram by default for deduplication
+
+    def _get_ngrams(self, text: str, n: int) -> Set[str]:
+        """Generate N-grams for a text (word-based)"""
+        words = text.split()
+        if len(words) < n:
+            return set()
+        return set(' '.join(words[i:i+n]) for i in range(len(words)-n+1))
+
+    def load_sft_ngrams(self, sft_path: str, n: int = 13):
+        """
+        Load the SFT dataset and build an N-gram set for deduplication
+        Note: this may consume significant memory but provides fast lookup
+        """
+        self.ngram_size = n
+        print(f"正在加载 SFT 数据用于去重 ({sft_path})...")
+        print(f"使用 {n}-gram Overlap 标准")
+        
+        if not os.path.exists(sft_path):
+            print(f"警告: SFT文件 {sft_path} 不存在，将跳过去重步骤！")
+            return
+
+        count = 0
+        try:
+            with open(sft_path, 'r', encoding='utf-8') as f:
+                for line in tqdm(f, desc="构建SFT N-grams"):
+                    try:
+                        item = json.loads(line)
+                        # Assume SFT data includes 'messages' (list) or 'text' (str)
+                        text_content = ""
+                        if "text" in item:
+                            text_content = item["text"]
+                        elif "messages" in item:
+                            # Concatenate all dialogue content
+                            text_content = " ".join([m.get("content", "") for m in item["messages"]])
+                        
+                        if text_content:
+                            ngrams = self._get_ngrams(text_content, n)
+                            self.sft_ngrams.update(ngrams)
+                            count += 1
+                    except json.JSONDecodeError:
+                        continue
+            print(f"SFT N-grams 加载完成。处理样本数: {count}, 唯一 {n}-grams 数: {len(self.sft_ngrams):,}")
+        except Exception as e:
+            print(f"加载 SFT 数据出错: {e}")
+
+    def check_contamination(self, text: str) -> bool:
+        """
+        Check whether the text is contaminated (i.e., contains an N-gram from the SFT dataset)
+        Return True if contaminated (should be discarded), False if clean
+        """
+        if not self.sft_ngrams:
+            return False
+            
+        target_ngrams = self._get_ngrams(text, self.ngram_size)
+        # Check if there is any intersection
+        if not target_ngrams.isdisjoint(self.sft_ngrams):
+            return True
+        return False
+
     def split_text_into_chunks(
         self,
         text: str,
         chunk_size: int = 512
     ) -> Optional[Dict]:
-        """Extract a fixed-length prefix chunk of the text (word-based)"""
+        """Extract a fixed-length prefix chunk from the text (word-based)"""
         words = text.split()
         if len(words) < chunk_size:
             return None
@@ -218,7 +280,7 @@ class MemorizationTestBuilder:
         }
 
     def check_dclm_content(self, text: str) -> Dict:
-        """Check DCLM dataset content characteristics"""
+        """Check content characteristics of the DCLM dataset"""
         text_lower = text.lower()
 
         code_indicators = [
@@ -287,7 +349,7 @@ class MemorizationTestBuilder:
         batch_size: int = 1000
     ) -> Dict:
         """
-        Stream-process the dataset to avoid out-of-memory issues
+        Stream-process the dataset to avoid OOM
 
         Args:
             input_path: Input file path
@@ -295,7 +357,7 @@ class MemorizationTestBuilder:
             dataset_type: Dataset type
             chunk_size: Chunk size for splitting
             seed: Random seed
-            batch_size: Batch size (for batch writing)
+            batch_size: Batch size (for batched writing)
         """
         random.seed(seed)
 
@@ -303,6 +365,7 @@ class MemorizationTestBuilder:
             "total_documents": 0,
             "total_chunks": 0,
             "selected_chunks": 0,
+            "contaminated_chunks": 0,  # New: count how many were removed by deduplication
             "skipped_short": 0,
             "total_samples": 0,
             "instruction_chunks": 0,
@@ -312,15 +375,19 @@ class MemorizationTestBuilder:
 
         # Count total lines first (for progress bar)
         print(f"正在统计文件行数...")
-        with open(input_path, "r", encoding="utf-8") as f:
-            total_lines = sum(1 for _ in f)
+        try:
+            with open(input_path, "r", encoding="utf-8") as f:
+                total_lines = sum(1 for _ in f)
+        except FileNotFoundError:
+            print(f"错误: 找不到文件 {input_path}")
+            return stats
 
         print(f"\n处理 {dataset_type} 数据集（共 {total_lines:,} 行）...")
 
-        # Batch buffer to reduce I/O frequency
+        # Batch buffer to reduce I/O calls
         sample_batch = []
 
-        # Streaming processing
+        # Stream processing
         with open(input_path, "r", encoding="utf-8") as f_in, \
              open(output_path, "w", encoding="utf-8") as f_out:
 
@@ -350,7 +417,7 @@ class MemorizationTestBuilder:
                 selection_reason = "general"
                 selection_score = 0
 
-                # Filter by dataset type
+                # 1) Apply content-based selection first; if it fails, skip deduplication to save work
                 if dataset_type == "stackexchange":
                     instruction_check = self.check_instruction_format(chunk_text)
                     if instruction_check["is_instruction"]:
@@ -375,6 +442,15 @@ class MemorizationTestBuilder:
                         selection_score = dclm_check["score"]
                         stats["general_chunks"] += 1
 
+                # 2) If selected, run deduplication / contamination check
+                if selected:
+                    if self.check_contamination(chunk_text):
+                        selected = False
+                        stats["contaminated_chunks"] += 1
+                        # The sample matches content criteria but is discarded due to contamination
+                        # print(f"检测到污染，丢弃文档 {doc_idx}")
+                        
+                # 3) Final write
                 if selected:
                     stats["selected_chunks"] += 1
                     sample = {
@@ -405,17 +481,29 @@ class MemorizationTestBuilder:
 
 
 def main():
-    """Main function: parse arguments and run test data construction"""
-    parser = argparse.ArgumentParser(description="构建memorization测试数据（内存优化版本）")
+    """Main entry: parse args and run test data construction"""
+    parser = argparse.ArgumentParser(description="构建memorization测试数据（内存优化版本 + 去重）")
     parser.add_argument("--input_dir", type=str, default="../../data/pretraining_test_data", help="输入数据目录")
     parser.add_argument("--output_dir", type=str, default="../../data/pretraining_test_data/mem_test", help="输出目录")
+    parser.add_argument("--sft_data_path", type=str, default="", help="SFT数据集路径 (jsonl格式)，用于去重/污染检查。如果不传则不去重。")
     parser.add_argument("--chunk_size", type=int, default=512, help="文本切分的word长度")
     parser.add_argument("--datasets", nargs="+", default=["stackexchange"], help="要处理的数据集列表")
     parser.add_argument("--seed", type=int, default=42, help="随机种子")
     parser.add_argument("--batch_size", type=int, default=1000, help="批处理大小")
+    parser.add_argument("--ngram_size", type=int, default=13, help="N-gram size for deduplication (default: 13)")
     args = parser.parse_args()
 
     builder = MemorizationTestBuilder()
+    
+    # Load SFT data (if provided)
+    if args.sft_data_path:
+        print(f"\n{'='*50}")
+        print("初始化去重模块...")
+        builder.load_sft_ngrams(args.sft_data_path, n=args.ngram_size)
+        print(f"{'='*50}")
+    else:
+        print(f"\n警告: 未指定 --sft_data_path，将不进行污染检查！")
+
     os.makedirs(args.output_dir, exist_ok=True)
 
     suffix_map = {
@@ -454,6 +542,7 @@ def main():
         print(f"  处理文档数: {stats['total_documents']:,}")
         print(f"  生成片段数: {stats['total_chunks']:,}")
         print(f"  跳过（太短）: {stats['skipped_short']:,}")
+        print(f"  因污染被丢弃: {stats['contaminated_chunks']:,} (N-gram={args.ngram_size})")
         print(f"  选中片段数: {stats['selected_chunks']:,}")
         print(f"  指令格式片段: {stats['instruction_chunks']:,}")
         print(f"  事实内容片段: {stats['factual_chunks']:,}")

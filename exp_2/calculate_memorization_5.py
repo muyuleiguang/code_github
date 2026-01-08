@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-计算模型记忆准确率（Exact Match）并生成LaTeX表格
-基于generation_two_datasets_2.py保存的结果文件
-修复版本：正确处理poems和idiom数据集
+Compute model memorization accuracy (Exact Match) and generate a LaTeX table
+Based on the result files saved by generation_two_datasets_2.py
+Fixed version: correctly handles the poems and idiom datasets
 """
 
 import os
@@ -22,14 +22,14 @@ import glob
 
 def normalize_text(text, lang='en'):
     """
-    文本标准化，用于准确比较
+    Text normalization for exact comparison
 
     Args:
-        text: 输入文本
-        lang: 语言类型 ('en' 或 'zh')
+        text: Input text
+        lang: Language type ('en' or 'zh')
 
     Returns:
-        str: 标准化后的文本
+        str: Normalized text
     """
     if not text:
         return ""
@@ -37,13 +37,13 @@ def normalize_text(text, lang='en'):
     text = str(text).strip()
 
     if lang == 'en':
-        # 英文处理：转小写，移除标点，标准化空格
+        # English processing: lowercase, remove punctuation, normalize spaces
         text = text.lower()
         text = text.translate(str.maketrans('', '', string.punctuation))
         text = ' '.join(text.split())
     else:
-        # 中文处理：移除空格和标点，只保留中文字符、数字和基本标点
-        # 保留中文字符、数字，移除其他字符
+        # Chinese processing: remove spaces and punctuation; keep only Chinese chars, digits, and basic punctuation
+        # Keep Chinese characters and digits, remove other characters
         text = re.sub(r'[^\u4e00-\u9fff0-9]', '', text)
 
     return text
@@ -51,35 +51,35 @@ def normalize_text(text, lang='en'):
 
 def extract_prediction_from_generation(generated_text, dataset_type):
     """
-    从模型生成的文本中提取预测答案
+    Extract the predicted answer from the model-generated text
 
     Args:
-        generated_text: 模型生成的完整文本
-        dataset_type: 数据集类型 ('idiom' 或 'poems')
+        generated_text: Full generated text from the model
+        dataset_type: Dataset type ('idiom' or 'poems')
 
     Returns:
-        str: 提取的预测答案
+        str: Extracted prediction
     """
     if not generated_text:
         return ""
 
-    # 清理生成文本
+    # Clean generated text
     text = generated_text.strip()
 
     if dataset_type == 'idiom':
-        # 对于俚语，提取第一个词作为预测
-        # 移除可能的标点符号和换行符
+        # For idioms, take the first word as the prediction
+        # Remove possible punctuation and newlines
         text = re.sub(r'[^\w\s]', '', text)
         words = text.split()
         return words[0] if words else ""
 
     else:  # poems
-        # 对于诗词，提取生成的诗句
-        # 移除换行符，取第一行
+        # For poems, extract the generated poetic line
+        # Remove newlines and take the first line
         lines = text.split('\n')
         prediction = lines[0].strip() if lines else text.strip()
 
-        # 进一步清理：移除可能的提示词
+        # Further cleanup: remove possible prompt prefixes
         prediction = re.sub(r'^(下句：|答案：|回答：)', '', prediction)
         prediction = prediction.strip()
 
@@ -88,15 +88,15 @@ def extract_prediction_from_generation(generated_text, dataset_type):
 
 def calculate_exact_match_accuracy(predicted, expected, dataset_type):
     """
-    计算精确匹配准确率
+    Compute exact match accuracy
 
     Args:
-        predicted: 预测文本
-        expected: 期望文本
-        dataset_type: 数据集类型
+        predicted: Predicted text
+        expected: Expected text
+        dataset_type: Dataset type
 
     Returns:
-        float: 准确率 (0 或 1)
+        float: Accuracy (0 or 1)
     """
     lang = 'zh' if dataset_type == 'poems' else 'en'
 
@@ -108,37 +108,37 @@ def calculate_exact_match_accuracy(predicted, expected, dataset_type):
 
 def parse_filename(filename):
     """
-    解析文件名以提取模型信息
+    Parse filename to extract model information
 
     Args:
-        filename: 文件名，例如 'generation_results_allenai_OLMo_2_0425_1B_base.json'
+        filename: Filename, e.g., 'generation_results_allenai_OLMo_2_0425_1B_base.json'
 
     Returns:
-        tuple: (model_name, scale, model_type) 或 (None, None, None) 如果解析失败
+        tuple: (model_name, scale, model_type) or (None, None, None) if parsing fails
     """
     if not filename.startswith('idiom_') or not filename.endswith('.json'):
         return None, None, None
 
-    # 移除前缀和后缀
-    # name_part = filename[19:-5]  # 移除 'generation_results_' 和 '.json'
+    # Remove prefix and suffix
+    # name_part = filename[19:-5]  # Remove 'generation_results_' and '.json'
 
-    # 分割并提取信息
+    # Split and extract information
     parts = filename.replace('.json', '').split('_')
 
     if len(parts) < 2:
         return None, None, None
 
-    # 最后一部分是模型类型
+    # The last part is model type
     model_type = parts[-1]
     if model_type not in ['base', 'sft']:
         return None, None, None
 
-    # 倒数第二部分是模型规模
+    # The second-to-last part is model scale
     scale = parts[-2]
     if scale not in ['1B', '7B', '13B', '32B']:
         return None, None, None
 
-    # 其余部分组成模型名称
+    # The remaining parts form the model name
     # model_name_parts = parts[:-2]
     # model_name = '_'.join(model_name_parts)
 
@@ -147,22 +147,22 @@ def parse_filename(filename):
 
 def load_and_process_results(results_dir, pattern):
     """
-    加载并处理所有结果文件
+    Load and process all result files
 
     Args:
-        results_dir: 结果目录
-        pattern: 文件匹配模式
+        results_dir: Results directory
+        pattern: File matching pattern
 
     Returns:
-        dict: 按模型规模、数据集类型、模型类型组织的结果
+        dict: Results organized by model scale, dataset type, and model type
     """
-    # 查找所有结果文件
+    # Find all result files
     search_pattern = os.path.join(results_dir, pattern)
     result_files = glob.glob(search_pattern)
 
     print(f"找到 {len(result_files)} 个结果文件")
 
-    # 组织数据结构: {scale: {dataset_type: {model_type: [results]}}}
+    # Organize data structure: {scale: {dataset_type: {model_type: [results]}}}
     organized_results = defaultdict(lambda: defaultdict(lambda: defaultdict(list)))
 
     for file_path in result_files:
@@ -176,7 +176,7 @@ def load_and_process_results(results_dir, pattern):
                 print(f"  - 警告: 文件格式不正确，缺少'results'字段")
                 continue
 
-            # 从文件名提取模型信息
+            # Extract model info from filename
             filename = os.path.basename(file_path)
             scale, model_type = parse_filename(filename)
 
@@ -186,25 +186,25 @@ def load_and_process_results(results_dir, pattern):
 
             print(f"  - 解析结果: 规模={scale}, 类型={model_type}")
 
-            # 统计数据集类型
+            # Dataset type statistics
             dataset_stats = defaultdict(int)
 
-            # 处理每个样本的结果
+            # Process each sample result
             for result in data['results']:
                 dataset_type = result.get('dataset_type', '')
                 generated_text = result.get('generated_text', '')
                 target_output = result.get('target_output', '')
 
-                # 统计数据集类型
+                # Count dataset types
                 dataset_stats[dataset_type] += 1
 
-                # 从生成文本中提取预测
+                # Extract prediction from generated text
                 prediction = extract_prediction_from_generation(generated_text, dataset_type)
 
-                # 计算准确率
+                # Compute accuracy
                 accuracy = calculate_exact_match_accuracy(prediction, target_output, dataset_type)
 
-                # 保存处理后的结果
+                # Save processed result
                 processed_result = {
                     'sample_id': result.get('sample_id', 0),
                     'generated_text': generated_text,
@@ -230,13 +230,13 @@ def load_and_process_results(results_dir, pattern):
 
 def calculate_accuracy_statistics(organized_results):
     """
-    计算准确率统计信息
+    Compute accuracy statistics
 
     Args:
-        organized_results: 组织好的结果数据
+        organized_results: Organized result data
 
     Returns:
-        dict: 准确率统计结果
+        dict: Accuracy statistics
     """
     stats = {}
 
@@ -272,14 +272,14 @@ def calculate_accuracy_statistics(organized_results):
 
 def create_latex_table(stats, model_scales, output_path):
     """
-    创建LaTeX表格，格式匹配提供的图片样式
+    Create a LaTeX table matching the provided screenshot style
 
     Args:
-        stats: 准确率统计结果
-        model_scales: 模型规模列表
-        output_path: 输出文件路径
+        stats: Accuracy statistics
+        model_scales: List of model scales
+        output_path: Output file path
     """
-    # 准备表格数据
+    # Prepare table content
     latex_content = [
         "\\begin{table}[htbp]",
         "\\centering",
@@ -289,7 +289,7 @@ def create_latex_table(stats, model_scales, output_path):
         "\\hline"
     ]
 
-    # 第一行：模型规模标题
+    # First row: model scale header
     header_row1 = " & "
     for scale in model_scales:
         header_row1 += f" & {scale}"
@@ -297,7 +297,7 @@ def create_latex_table(stats, model_scales, output_path):
     latex_content.append(header_row1)
     latex_content.append("\\hline")
 
-    # PEOM数据集部分
+    # PEOM dataset section
     latex_content.append("\\multirow{2}{*}{PEOM} & Base")
     for scale in model_scales:
         if (scale in stats and
@@ -314,7 +314,7 @@ def create_latex_table(stats, model_scales, output_path):
     latex_content[-1] += " \\\\"
     latex_content.append("\\cline{2-" + str(len(model_scales) + 2) + "}")
 
-    # PEOM SFT行
+    # PEOM SFT row
     latex_content.append(" & SFT")
     for scale in model_scales:
         if (scale in stats and
@@ -331,7 +331,7 @@ def create_latex_table(stats, model_scales, output_path):
     latex_content[-1] += " \\\\"
     latex_content.append("\\hline")
 
-    # IDIOM数据集部分
+    # IDIOM dataset section
     latex_content.append("\\multirow{2}{*}{IDIOM} & Base")
     for scale in model_scales:
         if (scale in stats and
@@ -348,7 +348,7 @@ def create_latex_table(stats, model_scales, output_path):
     latex_content[-1] += " \\\\"
     latex_content.append("\\cline{2-" + str(len(model_scales) + 2) + "}")
 
-    # IDIOM SFT行
+    # IDIOM SFT row
     latex_content.append(" & SFT")
     for scale in model_scales:
         if (scale in stats and
@@ -365,7 +365,7 @@ def create_latex_table(stats, model_scales, output_path):
     latex_content[-1] += " \\\\"
     latex_content.append("\\hline")
 
-    # 表格结尾
+    # Table ending
     latex_content.extend([
         "\\end{tabular}",
         "\\end{table}",
@@ -379,7 +379,7 @@ def create_latex_table(stats, model_scales, output_path):
         "% --: 表示没有相应数据"
     ])
 
-    # 保存LaTeX文件
+    # Save LaTeX file
     with open(output_path, 'w', encoding='utf-8') as f:
         f.write('\n'.join(latex_content))
 
@@ -388,14 +388,14 @@ def create_latex_table(stats, model_scales, output_path):
 
 def save_detailed_results(stats, organized_results, args):
     """
-    保存详细结果到CSV和JSON文件
+    Save detailed results to CSV and JSON files
 
     Args:
-        stats: 统计结果
-        organized_results: 原始组织结果
-        args: 命令行参数
+        stats: Statistics results
+        organized_results: Raw organized results
+        args: Command-line arguments
     """
-    # 保存CSV结果
+    # Save CSV results
     csv_data = []
 
     for scale in stats:
@@ -418,10 +418,10 @@ def save_detailed_results(stats, organized_results, args):
     csv_df.to_csv(csv_path, index=False, encoding='utf-8')
     print(f"CSV结果已保存到: {csv_path}")
 
-    # 保存详细JSON结果
+    # Save detailed JSON results
     json_path = os.path.join(args.output_dir, 'detailed_memorization_results.json')
 
-    # 转换为可序列化格式
+    # Convert to a JSON-serializable format
     def convert_numpy(obj):
         if isinstance(obj, np.floating):
             return float(obj)
@@ -457,10 +457,10 @@ def save_detailed_results(stats, organized_results, args):
 
 def print_summary_statistics(stats):
     """
-    打印摘要统计信息
+    Print summary statistics
 
     Args:
-        stats: 统计结果
+        stats: Statistics results
     """
     print("\n" + "=" * 80)
     print("记忆准确率摘要统计")
@@ -487,11 +487,11 @@ def print_summary_statistics(stats):
 
 def analyze_sample_predictions(organized_results, num_examples=5):
     """
-    分析样本预测，帮助调试
+    Analyze sample predictions for debugging
 
     Args:
-        organized_results: 组织好的结果数据
-        num_examples: 显示的示例数量
+        organized_results: Organized result data
+        num_examples: Number of examples to display
     """
     print("\n" + "=" * 80)
     print("样本预测分析")
@@ -517,17 +517,17 @@ def analyze_sample_predictions(organized_results, num_examples=5):
 
 
 def setup_args():
-    """设置命令行参数"""
+    """Set up command-line arguments"""
     parser = argparse.ArgumentParser(description='计算记忆准确率并生成LaTeX表格')
 
-    # 输入参数
+    # Input arguments
     parser.add_argument('--results_dir', type=str,
                         default='/root/autodl-tmp/ift_memorization/results/exp2_memorization_poem',
                         help='生成结果文件目录')
     parser.add_argument('--pattern', type=str, default='idiom_*.json',
                         help='结果文件的匹配模式')
 
-    # 输出参数
+    # Output arguments
     parser.add_argument('--output_dir', type=str,
                         default='/root/autodl-tmp/ift_memorization/results/exp2_memorization_poem',
                         help='输出结果保存目录')
@@ -535,24 +535,24 @@ def setup_args():
                         help='LaTeX表格文件名')
     parser.add_argument('--csv_filename', type=str, default='idiom_results.csv',
                         help='CSV结果文件名')
-    # 模型规模
+    # Model scales
     parser.add_argument('--model_scales', type=str, nargs='+', default=['1B', '7B', '13B', '32B'], help='模型规模列表')
 
     return parser.parse_args()
 
 
 def main():
-    """主函数"""
+    """Main function"""
     args = setup_args()
 
     print("开始计算记忆准确率...")
     print(f"输入目录: {args.results_dir}")
     print(f"输出目录: {args.output_dir}")
 
-    # 创建输出目录
+    # Create output directory
     os.makedirs(args.output_dir, exist_ok=True)
 
-    # 加载和处理结果
+    # Load and process results
     print("\n加载结果文件...")
     organized_results = load_and_process_results(args.results_dir, args.pattern)
 
@@ -560,22 +560,22 @@ def main():
         print("错误: 没有找到可处理的结果文件")
         return
 
-    # 分析样本预测（调试用）
+    # Analyze sample predictions (for debugging)
     analyze_sample_predictions(organized_results, num_examples=3)
 
-    # 计算准确率统计
+    # Compute accuracy statistics
     print("\n计算准确率统计...")
     stats = calculate_accuracy_statistics(organized_results)
 
-    # 打印摘要统计
+    # Print summary statistics
     print_summary_statistics(stats)
 
-    # 创建LaTeX表格
+    # Create LaTeX table
     print("\n生成LaTeX表格...")
     latex_path = os.path.join(args.output_dir, args.latex_filename)
     create_latex_table(stats, args.model_scales, latex_path)
 
-    # 保存详细结果
+    # Save detailed results
     print("\n保存详细结果...")
     save_detailed_results(stats, organized_results, args)
 
