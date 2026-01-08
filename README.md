@@ -48,4 +48,11 @@ python exp_2/evaluate_downstream_tasks_1.py --num_samples 100 --few_shot_count 5
 # 4) Memorization vs downstream relationship
 python exp_2/analyze_memorization_downstream_relationship_2.py
 
+Notes
 
+This repo provides code and instructions. Please follow the original licenses/terms for models and datasets.
+
+Citation
+
+If you use this code, please cite our paper:
+Instruction Fine-Tuning through the Lens of Verbatim Memorization
